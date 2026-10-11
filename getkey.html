@@ -46,16 +46,14 @@
 
         try {
             let refUrl = new URL(referer);
-            let refHostname = refUrl.hostname;
-
-            if (EXACT_DOMAINS.includes(refHostname)) {
+            if (EXACT_DOMAINS.includes(refUrl.hostname)) {
                 isMatched = true;
             }
         } catch (e) {
             isMatched = false;
         }
 
-        // Nếu không đi từ đúng các trang rút gọn trên -> Chặn
+        // Chặn nếu truy cập không đúng từ các trang rút gọn
         if (!isMatched) {
             document.getElementById("main-card").innerHTML = `
                 <div class="error-screen">
@@ -64,8 +62,20 @@
                 </div>
             `;
         } else {
-            // HIỂN THỊ KEY
-            let currentKey = "L4M_9921"; // Khớp với hệ thống chính của bạn
+            // ĐỌC THÔNG TIN NHÀ CUNG CẤP TRÊN URL (provider)
+            const urlParams = new URLSearchParams(window.location.search);
+            const provider = urlParams.get('provider') || 'default';
+
+            // DANH SÁCH KEY RIÊNG BIỆT CHO TỪNG TRANG RÚT GỌN
+            const keysList = {
+                'link4m': 'L4M_9921',
+                'vuotnhanh': 'VN_1082',
+                'yeumoney': 'YM_7712',
+                'layma': 'LM_6621',
+                'link4sub': 'L4S_1289'
+            };
+
+            let currentKey = keysList[provider] || "KEY_INVALID";
             document.getElementById("key-text").innerText = currentKey;
 
             let timeLeft = 30;
@@ -74,7 +84,6 @@
             const timerInterval = setInterval(function() {
                 timeLeft--;
                 document.getElementById("countdown").innerText = timeLeft;
-
                 if (timeLeft <= 0) {
                     destroyKey();
                 }
@@ -104,3 +113,4 @@
 
 </body>
 </html>
+ 
