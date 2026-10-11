@@ -3,19 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xác Nhận Lấy Key Bảo Mật</title>
+    <title>Xác Nhận Lấy Key Bảo Mật (One-Time)</title>
     <style>
         * { box-sizing: border-box; font-family: Arial, sans-serif; }
         body { background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
         .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); text-align: center; max-width: 450px; width: 100%; }
         .timer-box { font-size: 14px; color: #d9534f; font-weight: bold; margin-bottom: 10px; background: #fff0f0; padding: 8px; border-radius: 5px; }
-        .key-box { font-size: 17px; font-weight: bold; color: #28a745; background: #e8f5e9; padding: 12px; border-radius: 8px; border: 2px dashed #28a745; margin: 15px 0; letter-spacing: 1px; word-break: break-all; font-family: monospace; }
+        .key-box { font-size: 16px; font-weight: bold; color: #28a745; background: #e8f5e9; padding: 12px; border-radius: 8px; border: 2px dashed #28a745; margin: 15px 0; letter-spacing: 1px; word-break: break-all; font-family: monospace; }
         .btn { background: #007bff; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }
         .btn:hover { background: #0056b3; }
         .expired-msg { color: red; font-weight: bold; display: none; margin-top: 10px; }
         .provider-title { background: #17a2b8; color: white; display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
         .error-screen { color: #d9534f; font-weight: bold; padding: 20px; }
     </style>
+
+    <!-- FIREBASE SDK ĐỂ LƯU TRỮ VÀ KIỂM TRA KEY MỘT LẦN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD1_YT9MACIh28WuJOC-9ih3Xk-CSt3LQ0",
+            authDomain: "web1-dcd7a.firebaseapp.com",
+            projectId: "web1-dcd7a",
+            storageBucket: "web1-dcd7a.firebasestorage.app",
+            messagingSenderId: "93128679432",
+            appId: "1:93128679432:web:015237d83547b8ed8231bd",
+            measurementId: "G-SGCT4RMT2S"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.db = db;
+        window.FB = { doc, setDoc, getDoc };
+    </script>
 </head>
 <body>
 
@@ -23,26 +44,28 @@
         <div class="provider-title" id="provider-badge">Nhiệm Vụ</div>
         <h3>🎉 Vượt Link Thành Công!</h3>
         
-        <div class="timer-box" id="timer-display">⏱️ Key sẽ tự hủy sau: <span id="countdown">30</span> giây</div>
+        <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy sau: <span id="countdown">30</span> giây</div>
 
-        <div class="key-box" id="key-text">Đang tạo key bảo mật...</div>
+        <div class="key-box" id="key-text">Đang tạo mã độc quyền...</div>
         
-        <button class="btn" id="copy-btn" onclick="copyAndDestroyKey()">📋 Sao Chép Key Bảo Mật</button>
+        <button class="btn" id="copy-btn" onclick="copyAndDestroyKey()">📋 Sao Chép Key & Kích Hoạt 1 Lần</button>
 
-        <p class="expired-msg" id="expired-text">⚠️ Key đã tự hủy! Vui lòng vượt link lại để lấy mã mới.</p>
+        <p class="expired-msg" id="expired-text">⚠️ Key đã được sử dụng hoặc hết hạn! Vui lòng thực hiện vượt link mới.</p>
     </div>
 
     <script>
-        // --- CHỐNG GIAN LẬN: KIỂM TRA NGUỒN TRUY CẬP (REFERER) ---
-        // Các domain được phép chuyển hướng tới trang lấy key này (Thêm domain của bạn vào đây)
-        const ALLOWED_DOMAINS = ["link4m.org", "link4sub.com", "vuotnhanh.com", "yeumoney.com", "layma.net", "github.io"];
+        // --- CHỐNG GIAN LẬN: KIỂM TRA TÊN MIỀN NGUỒN (REFERER) ---
+        const ALLOWED_DOMAINS = [
+            "link4m.org", "link4sub.com", "vuotnhanh.com", "yeumoney.com", "layma.net", 
+            "github.io", "127.0.0.1", "localhost"
+        ];
+
         let referer = document.referrer;
         let isValidAccess = false;
 
         try {
             if (!referer) {
-                // Cho phép chạy local hoặc truy cập trực tiếp khi test (bạn có thể siết chặt bằng cách bỏ qua dòng này)
-                isValidAccess = true; 
+                isValidAccess = true; // Cho phép test trực tiếp
             } else {
                 let refDomain = new URL(referer).hostname;
                 if (ALLOWED_DOMAINS.some(domain => refDomain.includes(domain))) {
@@ -53,39 +76,41 @@
             isValidAccess = true;
         }
 
-        // Nếu cố tình nhập thẳng link getkey mà không qua các trang rút gọn -> Chặn hoàn toàn
         if (!isValidAccess) {
             document.getElementById("main-card").innerHTML = `
                 <div class="error-screen">
                     <h2>⚠️ TRUY CẬP BỊ TỪ CHỐI!</h2>
-                    <p>Bạn phải hoàn thành việc vượt link qua các nhà cung cấp chính thức mới được cấp Key bảo mật.</p>
+                    <p>Phát hiện hành vi gian lận vượt tuyến! Bạn phải đi từ các trang rút gọn chính thức.</p>
                 </div>
             `;
         } else {
             const urlParams = new URLSearchParams(window.location.search);
             const provider = urlParams.get('provider') || 'link4m';
-            document.getElementById("provider-badge").innerText = "Nhiệm Vụ: " + provider;
+            document.getElementById("provider-badge").innerText = "Phân Loại: " + provider.toUpperCase();
 
-            // HÀM TẠO KEY BẢO MẬT ĐỒNG BỘ CHUẨN 100% VỚI INDEX.HTML
-            function generateSecureKey(prov) {
+            let currentKey = "";
+
+            // KHỞI TẠO VÀ LƯU KEY RANDOM LÊN CLOUD ĐỂ ĐẢM BẢO CHỈ DÙNG 1 LẦN
+            async function initUniqueKey() {
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-                let secretSalt = "TRONG_KEY_SECRET_2026";
-                let rawText = prov.toUpperCase() + "_" + dateStr + "_" + secretSalt;
                 
-                let hash = 0;
-                for (let i = 0; i < rawText.length; i++) {
-                    hash = ((hash << 5) - hash) + rawText.charCodeAt(i);
-                    hash |= 0;
-                }
-                let hexCode = Math.abs(hash).toString(16).toUpperCase().padStart(8, 'X');
-                let subHash = Math.abs(hash * 31).toString(16).toUpperCase().padStart(4, 'Y');
+                // Tạo đoạn mã random độc quyền cho phiên này
+                let randomHex = Math.random().toString(36).substring(2, 10).toUpperCase();
+                currentKey = `${provider.toUpperCase()}-${randomHex}-${dateStr}`;
+                
+                document.getElementById("key-text").innerText = currentKey;
 
-                return `${prov.toUpperCase()}-${hexCode}-${subHash}-${dateStr}`;
+                // Lưu trạng thái key chưa sử dụng lên Firestore
+                try {
+                    if (window.db && window.FB) {
+                        let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
+                        await window.FB.setDoc(keyRef, { provider: provider, used: false, time: new Date().toLocaleString() });
+                    }
+                } catch(e) {}
             }
 
-            let currentKey = generateSecureKey(provider);
-            document.getElementById("key-text").innerText = currentKey;
+            setTimeout(initUniqueKey, 500);
 
             let timeLeft = 30;
             let isCopied = false;
@@ -96,12 +121,21 @@
                 if (timeLeft <= 0) destroyKey();
             }, 1000);
 
-            window.copyAndDestroyKey = function() {
-                if (isCopied || timeLeft <= 0) return;
-                let keyText = document.getElementById("key-text").innerText;
-                navigator.clipboard.writeText(keyText);
-                alert("Đã sao chép Key thành công!\n(Key đã tự hủy để chống gian lận)");
+            window.copyAndDestroyKey = async function() {
+                if (isCopied || timeLeft <= 0 || !currentKey) return;
+                
+                navigator.clipboard.writeText(currentKey);
+                alert("Đã sao chép Key bảo mật thành công!\n(Key này chỉ có hiệu lực sử dụng 1 lần duy nhất).");
                 isCopied = true;
+
+                // Đánh dấu key đã được sử dụng trên Cloud để chặn người thứ 2 dùng lại
+                try {
+                    if (window.db && window.FB) {
+                        let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
+                        await window.FB.setDoc(keyRef, { provider: provider, used: true, time: new Date().toLocaleString() }, { merge: true });
+                    }
+                } catch(e) {}
+
                 destroyKey();
             };
 
@@ -114,6 +148,5 @@
             }
         }
     </script>
-
 </body>
 </html>
