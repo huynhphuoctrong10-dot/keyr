@@ -31,28 +31,43 @@
     </div>
 
     <script>
-        // CẤU HÌNH BẢO MẬT
-        const ALLOWED_DOMAIN = "github.io"; // Tên miền cho phép truy cập
-        const SECRET_SALT = "Trong_Dep_Trai_2026";
+        // DANH SÁCH TÊN MIỀN ĐƯỢC PHÉP TRUY CẬP (KHỚP TUYỆT ĐỐI)
+        const EXACT_DOMAINS = [
+            "link4m.org",
+            "link4sub.com",
+            "vuotnhanh.com",
+            "yeumoney.com",
+            "layma.net",
+            "huynhphuoctrong10-dot.github.io"
+        ];
 
-        // 1. KIỂM TRA ĐÚNG TÊN MIỀN
         let referer = document.referrer;
-        let isAllowed = referer.includes(ALLOWED_DOMAIN) || window.location.hostname.includes(ALLOWED_DOMAIN);
+        let isMatched = false;
 
-        if (!isAllowed) {
+        try {
+            let refUrl = new URL(referer);
+            let refHostname = refUrl.hostname;
+
+            if (EXACT_DOMAINS.includes(refHostname)) {
+                isMatched = true;
+            }
+        } catch (e) {
+            isMatched = false;
+        }
+
+        // Nếu không đi từ đúng các trang rút gọn trên -> Chặn
+        if (!isMatched) {
             document.getElementById("main-card").innerHTML = `
                 <div class="error-screen">
                     <h2>⚠️ TRUY CẬP BỊ TỪ CHỐI!</h2>
-                    <p>Bạn phải vượt link từ website chính thức để lấy Key.</p>
+                    <p>Bạn phải vượt link từ các trang rút gọn chính thức để lấy Key.</p>
                 </div>
             `;
         } else {
-            // 2. TẠO KEY ĐỘNG THEO NGÀY (L4M_9921)
-            let todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-            let currentKey = "L4M_9921"; // Key khớp với file index.html của bạn
+            // HIỂN THỊ KEY
+            let currentKey = "L4M_9921"; // Khớp với hệ thống chính của bạn
             document.getElementById("key-text").innerText = currentKey;
 
-            // 3. ĐẾM NGƯỢC 30 GIÂY
             let timeLeft = 30;
             let isCopied = false;
 
@@ -65,14 +80,13 @@
                 }
             }, 1000);
 
-            // 4. SAO CHÉP VÀ XÓA KEY NGAY LẬP TỨC
             window.copyAndDestroyKey = function() {
                 if (isCopied || timeLeft <= 0) return;
 
                 let keyText = document.getElementById("key-text").innerText;
                 navigator.clipboard.writeText(keyText);
 
-                alert("Đã sao chép Key: " + keyText + "\n(Key sẽ bị xóa ngay lập tức!)");
+                alert("Đã sao chép Key: " + keyText + "\n(Key đã bị xóa ngay lập tức!)");
                 
                 isCopied = true;
                 destroyKey();
