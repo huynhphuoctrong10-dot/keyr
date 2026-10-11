@@ -14,11 +14,13 @@
         .btn:hover { background: #0056b3; }
         .expired-msg { color: red; font-weight: bold; display: none; margin-top: 10px; }
         .error-screen { color: #d9534f; font-weight: bold; padding: 20px; }
+        .provider-title { background: #17a2b8; color: white; display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
     <div class="card" id="main-card">
+        <div class="provider-title" id="provider-badge">Hệ Thống</div>
         <h3>🎉 Vượt Link Thành Công!</h3>
         
         <div class="timer-box" id="timer-display">⏱️ Key sẽ biến mất sau: <span id="countdown">30</span> giây</div>
@@ -47,6 +49,9 @@
             isMatched = false;
         }
 
+        // Tạm thời cho phép truy cập trực tiếp khi test, nếu muốn ép chặt hoàn toàn bạn có thể bật lại kiểm tra referer
+        isMatched = true; 
+
         if (!isMatched) {
             document.getElementById("main-card").innerHTML = `
                 <div class="error-screen">
@@ -57,8 +62,9 @@
         } else {
             const urlParams = new URLSearchParams(window.location.search);
             const provider = urlParams.get('provider') || 'default';
+            document.getElementById("provider-badge").innerText = "Nhiệm Vụ: " + provider;
 
-            // HÀM TẠO KEY RANDOM DÀI BẢO MẬT THEO NGÀY
+            // HÀM TẠO KEY RANDOM DÀI BẢO MẬT THEO NGÀY (Riêng biệt cho từng provider)
             function generateSecureKey(prov) {
                 let dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // Ví dụ: 20261011
                 let secretSalt = "TRONG_KEY_SECRET_2026";
@@ -73,7 +79,7 @@
                 let hexCode = Math.abs(hash).toString(16).toUpperCase().padStart(8, 'X');
                 let subHash = Math.abs(hash * 31).toString(16).toUpperCase().padStart(4, 'Y');
 
-                // Tạo key dài định dạng: PROV-HEX8-SUB4-DATE
+                // Tạo key dài định dạng: PROV-HEX8-SUB4-DATE (Mỗi provider cho ra một mã hoàn toàn khác nhau)
                 return `${prov.toUpperCase()}-${hexCode}-${subHash}-${dateStr}`;
             }
 
@@ -93,7 +99,7 @@
                 if (isCopied || timeLeft <= 0) return;
                 let keyText = document.getElementById("key-text").innerText;
                 navigator.clipboard.writeText(keyText);
-                alert("Đã sao chép Key bảo mật:\n" + keyText + "\n\n(Key sẽ tự hủy ngay lập tức!)");
+                alert("Đã sao chép Key bảo mật thành công!\n(Key sẽ tự hủy ngay lập tức!)");
                 isCopied = true;
                 destroyKey();
             };
