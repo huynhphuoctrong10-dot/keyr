@@ -1,30 +1,3 @@
-<?php
-// ==========================================
-// 1. CẤU HÌNH BẢO MẬT HỆ THỐNG
-// ==========================================
-$ALLOWED_DOMAIN = "tentaikhoan.github.io"; // Thay bằng tên miền website GitHub của bạn (không gồm https://)
-$SECRET_SALT = "Trong_Dep_Trai_Secure_2026"; // Chuỗi bí mật ngầm
-
-// 2. KIỂM TRA TÊN MIỀN TRUY CẬP (REFERER CHECK)
-$referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
-$referer_host = parse_url($referer, PHP_URL_HOST);
-
-if (empty($referer_host) || strpos($referer_host, $ALLOWED_DOMAIN) === false) {
-    header('HTTP/1.0 403 Forbidden');
-    echo "<div style='text-align:center; margin-top:50px; font-family:Arial;'>
-            <h2 style='color:red;'>⚠️ TRUY CẬP BỊ TỪ CHỐI!</h2>
-            <p>Bạn phải truy cập đúng từ website chính thức để lấy Key.</p>
-          </div>";
-    exit();
-}
-
-// 3. TẠO MÃ KEY TỰ ĐỘNG ĐỔI THEO NGÀY
-$today = date("Ymd");
-$raw_hash = md5($today . "_" . $SECRET_SALT);
-$short_code = strtoupper(substr($raw_hash, 0, 4));
-$CURRENT_KEY = "L4M_" . date("dm") . "_" . $short_code;
-?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -39,62 +12,82 @@ $CURRENT_KEY = "L4M_" . date("dm") . "_" . $short_code;
         .key-box { font-size: 22px; font-weight: bold; color: #28a745; background: #e8f5e9; padding: 12px; border-radius: 8px; border: 2px dashed #28a745; margin: 15px 0; letter-spacing: 2px; word-break: break-all; }
         .btn { background: #007bff; color: white; padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }
         .btn:hover { background: #0056b3; }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .expired-msg { color: red; font-weight: bold; display: none; }
+        .expired-msg { color: red; font-weight: bold; display: none; margin-top: 10px; }
+        .error-screen { color: #d9534f; font-weight: bold; padding: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="card">
+    <div class="card" id="main-card">
         <h3>🎉 Vượt Link Thành Công!</h3>
         
         <div class="timer-box" id="timer-display">⏱️ Key sẽ biến mất sau: <span id="countdown">30</span> giây</div>
 
-        <div class="key-box" id="key-text"><?php echo $CURRENT_KEY; ?></div>
+        <div class="key-box" id="key-text">Đang tạo key...</div>
         
         <button class="btn" id="copy-btn" onclick="copyAndDestroyKey()">📋 Sao Chép Key</button>
 
-        <p class="expired-msg" id="expired-text">⚠️ Key đã bị xóa hoặc hết thời gian! Vui lòng vượt link lại để lấy Key mới.</p>
+        <p class="expired-msg" id="expired-text">⚠️ Key đã bị xóa hoặc hết 30s! Vui lòng vượt link lại để lấy Key mới.</p>
     </div>
 
     <script>
-        let timeLeft = 30;
-        let isCopied = false;
+        // CẤU HÌNH BẢO MẬT
+        const ALLOWED_DOMAIN = "github.io"; // Tên miền cho phép truy cập
+        const SECRET_SALT = "Trong_Dep_Trai_2026";
 
-        // Đếm ngược 30s
-        const timerInterval = setInterval(function() {
-            timeLeft--;
-            document.getElementById("countdown").innerText = timeLeft;
+        // 1. KIỂM TRA ĐÚNG TÊN MIỀN
+        let referer = document.referrer;
+        let isAllowed = referer.includes(ALLOWED_DOMAIN) || window.location.hostname.includes(ALLOWED_DOMAIN);
 
-            if (timeLeft <= 0) {
-                destroyKey("Hết thời gian 30s!");
+        if (!isAllowed) {
+            document.getElementById("main-card").innerHTML = `
+                <div class="error-screen">
+                    <h2>⚠️ TRUY CẬP BỊ TỪ CHỐI!</h2>
+                    <p>Bạn phải vượt link từ website chính thức để lấy Key.</p>
+                </div>
+            `;
+        } else {
+            // 2. TẠO KEY ĐỘNG THEO NGÀY (L4M_9921)
+            let todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+            let currentKey = "L4M_9921"; // Key khớp với file index.html của bạn
+            document.getElementById("key-text").innerText = currentKey;
+
+            // 3. ĐẾM NGƯỢC 30 GIÂY
+            let timeLeft = 30;
+            let isCopied = false;
+
+            const timerInterval = setInterval(function() {
+                timeLeft--;
+                document.getElementById("countdown").innerText = timeLeft;
+
+                if (timeLeft <= 0) {
+                    destroyKey();
+                }
+            }, 1000);
+
+            // 4. SAO CHÉP VÀ XÓA KEY NGAY LẬP TỨC
+            window.copyAndDestroyKey = function() {
+                if (isCopied || timeLeft <= 0) return;
+
+                let keyText = document.getElementById("key-text").innerText;
+                navigator.clipboard.writeText(keyText);
+
+                alert("Đã sao chép Key: " + keyText + "\n(Key sẽ bị xóa ngay lập tức!)");
+                
+                isCopied = true;
+                destroyKey();
+            };
+
+            function destroyKey() {
+                clearInterval(timerInterval);
+                document.getElementById("key-text").style.display = "none";
+                document.getElementById("copy-btn").style.display = "none";
+                document.getElementById("timer-display").style.display = "none";
+                document.getElementById("expired-text").style.display = "block";
             }
-        }, 1000);
-
-        // Hàm sao chép và tự động xóa Key ngay lập tức
-        function copyAndDestroyKey() {
-            if (isCopied || timeLeft <= 0) return;
-
-            let keyText = document.getElementById("key-text").innerText;
-            navigator.clipboard.writeText(keyText);
-
-            alert("Đã sao chép Key: " + keyText + "\n(Key sẽ bị xóa ngay lập tức!)");
-            
-            isCopied = true;
-            destroyKey("Đã sao chép 1 lần!");
-        }
-
-        // Hàm tiêu hủy Key khỏi giao diện
-        function destroyKey(reason) {
-            clearInterval(timerInterval);
-            document.getElementById("key-text").style.display = "none";
-            document.getElementById("copy-btn").style.display = "none";
-            document.getElementById("timer-display").style.display = "none";
-            
-            let expiredEl = document.getElementById("expired-text");
-            expiredEl.style.display = "block";
         }
     </script>
 
 </body>
 </html>
+ 
