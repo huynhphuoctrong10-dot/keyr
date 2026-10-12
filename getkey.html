@@ -115,7 +115,7 @@
 
         let isLegit = false;
         if (rule && (referrer.includes(rule.validDomain) || referrer === "")) {
-            isLegit = true; // Cho phép cả trường hợp trình duyệt chặn referrer nhưng có param chuẩn
+            isLegit = true;
         }
 
         if (!rule) {
@@ -131,24 +131,34 @@
             let currentKey = "";
 
             async function initUniqueKey() {
+                // Cố định key bằng sessionStorage để khi F5 trang không bị sinh key mới
+                let storageKey = `active_key_${PROVIDER_NAME}`;
+                let savedKey = sessionStorage.getItem(storageKey);
+
+                if (savedKey) {
+                    currentKey = savedKey;
+                    document.getElementById("key-text").innerText = currentKey;
+                    return;
+                }
+
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 
                 let randomHex = Math.random().toString(36).substring(2, 10).toUpperCase();
                 currentKey = `${PROVIDER_NAME.toUpperCase()}-${randomHex}-${dateStr}`;
                 
+                sessionStorage.setItem(storageKey, currentKey);
                 document.getElementById("key-text").innerText = currentKey;
 
                 try {
                     if (window.db && window.FB) {
                         let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                        // Chỉ tạo key với trạng thái used: false (Chưa sử dụng)
                         await window.FB.setDoc(keyRef, { provider: PROVIDER_NAME, used: false, time: new Date().toLocaleString() });
                     }
                 } catch(e) {}
             }
 
-            setTimeout(initUniqueKey, 400);
+            setTimeout(initUniqueKey, 300);
 
             let timeLeft = 30;
             let isCopied = false;
@@ -159,7 +169,7 @@
                 if (timeLeft <= 0) hideKeyDisplay();
             }, 1000);
 
-            // Chỉ copy key vào bộ nhớ tạm, KHÔNG đổi trạng thái used trên Firebase ở bước này
+            // CHỈ COPY, TUYỆT ĐỐI KHÔNG ĐỔI TRẠNG THÁI `used: true` Ở ĐÂY
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
                 navigator.clipboard.writeText(currentKey);
@@ -169,7 +179,6 @@
 
             function hideKeyDisplay() {
                 clearInterval(timerInterval);
-                document.getElementById("key-textstyle")?.remove();
                 document.getElementById("key-text").style.display = "none";
                 document.getElementById("copy-btn").style.display = "none";
                 document.getElementById("timer-display").style.display = "none";
