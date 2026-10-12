@@ -1,1 +1,639 @@
-const PROVIDER_NAME = 'vuotnhanh';
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Kiếm Tiền Cloud - Dashboard</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
+            margin: 0; padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; color: #333;
+        }
+        .container { 
+            max-width: 600px; width: 100%; margin: 0 auto; background: rgba(255, 255, 255, 0.98); 
+            padding: 25px; border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); 
+            backdrop-filter: blur(10px);
+        }
+        .wallet-box { 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+            color: white; padding: 16px; border-radius: 12px; text-align: center; 
+            font-size: 20px; font-weight: bold; margin-bottom: 20px; 
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        .step-card { 
+            border: 1px solid #e2e8f0; padding: 15px; margin-bottom: 15px; border-radius: 12px; 
+            background: #ffffff; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            transition: all 0.2s ease;
+        }
+        .step-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .step-card.completed { background: #f0fdf4; border-color: #bbf7d0; }
+        .reward-badge { 
+            position: absolute; top: 12px; right: 12px; background: #f59e0b; color: white; 
+            font-size: 12px; font-weight: bold; padding: 4px 10px; border-radius: 20px; 
+            box-shadow: 0 2px 5px rgba(245, 158, 11, 0.3);
+        }
+        .btn { 
+            display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+            color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; 
+            font-size: 13px; font-weight: 600; margin: 8px 0; transition: all 0.2s;
+            box-shadow: 0 3px 10px rgba(59, 130, 246, 0.3);
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4); }
+        .input-group { display: flex; gap: 8px; margin-top: 10px; }
+        input[type="text"], input[type="password"], select { 
+            flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; margin-top: 5px; font-size: 14px;
+        }
+        input:focus, select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        button.btn-verify { 
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border: none; color: white; 
+            padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px;
+            transition: opacity 0.2s;
+        }
+        button.btn-verify:hover { opacity: 0.9; }
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .tab-btn { 
+            flex: 1; padding: 12px; border: none; background: #f1f5f9; cursor: pointer; 
+            border-radius: 8px; font-weight: bold; font-size: 14px; color: #64748b; transition: all 0.2s;
+        }
+        .tab-btn.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background: #f8fafc; color: #475569; }
+        
+        /* AUTH SCREEN */
+        .auth-box { max-width: 400px; margin: 0 auto; padding: 30px; background: rgba(255, 255, 255, 0.98); border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
+        .auth-box h2 { text-align: center; margin-top: 0; color: #1e293b; font-size: 26px; }
+        .auth-tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+        .auth-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #64748b; background: none; border: none; font-size: 15px; }
+        .auth-tab.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; margin-bottom: -2px; }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        .auth-form input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 8px; }
+        .auth-form button { width: 100%; padding: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        
+        .form-card { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .field-group { margin-bottom: 15px; }
+        .field-group label { font-size: 13px; font-weight: 600; display: block; color: #475569; margin-bottom: 5px; }
+
+        /* MODAL THÔNG BÁO NỔI */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .modal-box {
+            background: #ffffff; width: 90%; max-width: 450px; padding: 25px;
+            border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            animation: scaleIn 0.3s ease;
+        }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-box h3 { margin-top: 0; color: #1e293b; font-size: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .modal-content { font-size: 14px; color: #475569; line-height: 1.6; max-height: 250px; overflow-y: auto; margin-bottom: 20px; white-space: pre-line; }
+        .modal-footer { display: flex; flex-direction: column; gap: 10px; }
+        .modal-checkbox { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; cursor: pointer; }
+        .btn-close-modal {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; border: none;
+            padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px;
+        }
+
+        /* NÚT HỖ TRỢ NỔI GÓC DƯỚI BÊN TRÁI */
+        .support-float {
+            position: fixed; bottom: 25px; left: 25px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white; width: 55px; height: 55px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); text-decoration: none; z-index: 998;
+            transition: all 0.3s ease;
+        }
+        .support-float:hover { transform: scale(1.1) translateY(-2px); box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6); }
+        .support-float svg { width: 28px; height: 28px; fill: currentColor; }
+
+        /* BOX ĐIỀU KHOẢN & LIÊN HỆ HỖ TRỢ DƯỚI NHIỆM VỤ */
+        .terms-box {
+            background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
+            padding: 18px; margin-top: 20px; font-size: 13px; color: #92400e; line-height: 1.6;
+        }
+        .terms-box h4 { margin: 0 0 10px 0; color: #b45309; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+        .terms-box ul { margin: 0; padding-left: 18px; }
+        .terms-box li { margin-bottom: 6px; }
+        .support-text {
+            margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fcd34d;
+            text-align: center; font-weight: 600; color: #78350f;
+        }
+        .support-text a { color: #2563eb; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <!-- ICON HỖ TRỢ NỔI GÓC DƯỚI TRÁI -->
+    <a href="https://www.facebook.com/share/1F5jCregYT/" target="_blank" class="support-float" title="Liên hệ Hỗ Trợ">
+        <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12c0 2.17.7 4.19 1.91 5.84L2.5 21.5l3.81-1.25C7.81 21.3 9.83 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
+        </svg>
+    </a>
+
+    <!-- BẢNG THÔNG BÁO NỔI KHI VỪA VÀO WEB -->
+    <div id="notice-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <h3 id="modal-title-label">📜 Thông Báo Hệ Thống</h3>
+            <div class="modal-content" id="modal-content-label">Đang tải thông báo từ hệ thống...</div>
+            <div class="modal-footer">
+                <label class="modal-checkbox">
+                    <input type="checkbox" id="hide-2h-checkbox"> Không hiển thị lại trong 2 giờ tới
+                </label>
+                <button type="button" class="btn-close-modal" onclick="closeNoticeModal()">Đóng Bảng Thông Báo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ -->
+    <div id="auth-screen" class="auth-box">
+        <h2>Kiếm Tiền Cloud</h2>
+        <div class="auth-tabs">
+            <button type="button" class="auth-tab active" onclick="switchAuthTab('login')">Đăng Nhập</button>
+            <button type="button" class="auth-tab" onclick="switchAuthTab('register')">Đăng Ký</button>
+        </div>
+
+        <div id="login-form" class="auth-form active">
+            <input type="text" id="login-user" placeholder="Tên tài khoản...">
+            <input type="password" id="login-pass" placeholder="Mật khẩu...">
+            <button type="button" id="btn-login-action" onclick="handleLogin()">Đăng Nhập Vào Hệ Thống</button>
+        </div>
+
+        <div id="register-form" class="auth-form">
+            <input type="text" id="reg-user" placeholder="Chọn tên tài khoản mới...">
+            <input type="password" id="reg-pass" placeholder="Mật khẩu bảo mật...">
+            <button type="button" id="btn-reg-action" onclick="handleRegister()">Đăng Ký Tài Khoản</button>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH CHÍNH (DASHBOARD) -->
+    <div id="main-screen" class="container" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+            <span>👤 Tài khoản: <b id="current-user-label" style="color: #2563eb;"></b></span>
+            <button type="button" onclick="handleLogout()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600;">Đăng Xuất</button>
+        </div>
+
+        <div class="nav-tabs">
+            <button type="button" class="tab-btn active" onclick="switchTab('user-tab', event)">🌐 Làm Nhiệm Vụ</button>
+            <button type="button" class="tab-btn" onclick="switchTab('withdraw-tab', event)">💳 Rút Tiền / Đổi Thẻ</button>
+        </div>
+
+        <!-- TAB LÀM NHIỆM VỤ -->
+        <div id="user-tab" class="tab-content active">
+            <div class="wallet-box">Ví Tiền: <span id="balance-display">0</span> VNĐ</div>
+            <p style="font-size: 13px; color: #64748b; text-align: center; margin-bottom: 15px;">⚡ Nhiệm vụ và lượt vượt link sẽ tự động reset mới mỗi ngày!</p>
+            
+            <div id="steps-container"></div>
+
+            <!-- ĐIỀU KHOẢN VÀ THẮC MẮC HỖ TRỢ -->
+            <div class="terms-box">
+                <h4>📜 Điều khoản & Quy định hệ thống:</h4>
+                <ul>
+                    <li><b>Chống gian lận 1 lần:</b> Mỗi Key sinh ra chỉ có hiệu lực kích hoạt sử dụng đúng 1 lần duy nhất trên hệ thống.</li>
+                    <li><b>Yêu cầu nguồn chuẩn:</b> Hệ thống kiểm tra khắt khe nguồn truy cập. Việc cố tình nhập tay URL trực tiếp hoặc dùng tool giả lập sẽ bị từ chối cấp mã.</li>
+                    <li><b>Quy định đổi thưởng:</b> Nghiêm cấm mọi hành vi tạo tài khoản ảo, gian lận lượt vượt link. Tài khoản vi phạm sẽ bị khóa vĩnh viễn và hủy toàn bộ số dư.</li>
+                    <li><b>Thời gian duyệt rút:</b> Yêu cầu rút tiền/đổi thẻ cào sẽ được hệ thống xử lý trong vòng 7 ngày làm việc. Đơn quá 7 ngày chưa xử lý sẽ tự động hoàn tiền vào ví.</li>
+                </ul>
+                <div class="support-text">
+                    💡 Mọi thắc mắc gì xin liên hệ bộ phận hỗ trợ qua <a href="https://www.facebook.com/share/1F5jCregYT/" target="_blank">Facebook Hỗ Trợ</a>.
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB RÚT TIỀN -->
+        <div id="withdraw-tab" class="tab-content">
+            <h3 style="margin-top:0; color: #1e293b;">Yêu Cầu Rút Tiền & Đổi Thẻ</h3>
+            <div class="form-card">
+                <p style="font-size: 13px; margin-top:0;">Số dư khả dụng: <b id="withdraw-balance" style="color: #059669;">0</b> VNĐ</p>
+                
+                <div class="field-group">
+                    <label>Hình thức nhận:</label>
+                    <select id="pay-method" onchange="toggleMethod()">
+                        <option value="MoMo">Ví MoMo</option>
+                        <option value="NganHang">Ngân Hàng ATM</option>
+                        <option value="TheCao">Thẻ Cào Điện Thoại</option>
+                    </select>
+                </div>
+
+                <div id="bank-group" class="field-group" style="display: none;">
+                    <label>Tên Ngân Hàng:</label>
+                    <input type="text" id="bank-name-input" placeholder="VD: Vietcombank, Techcombank, MB Bank, ACB...">
+                </div>
+
+                <div id="card-type-group" class="field-group" style="display: none;">
+                    <label>Chọn loại thẻ:</label>
+                    <select id="card-provider">
+                        <option value="Viettel">Viettel</option>
+                        <option value="Mobifone">Mobifone</option>
+                        <option value="Vinaphone">Vinaphone</option>
+                    </select>
+                </div>
+
+                <div id="fullname-group" class="field-group">
+                    <label>Họ tên chủ tài khoản (Không dấu):</label>
+                    <input type="text" id="pay-fullname" placeholder="VD: NGUYEN VAN A" style="text-transform: uppercase;">
+                </div>
+
+                <div class="field-group">
+                    <label id="account-label">Số tài khoản / Số ví:</label>
+                    <input type="text" id="pay-account" placeholder="Nhập gmail ví dụ :trong@gmail.com...">
+                </div>
+
+                <div class="field-group">
+                    <label>Số điện thoại liên hệ:</label>
+                    <input type="text" id="pay-phone" placeholder="Nhập số điện thoại...">
+                </div>
+
+                <div class="field-group">
+                    <label>Mệnh giá rút:</label>
+                    <select id="pay-amount">
+                        <option value="10000">10.000 VNĐ</option>
+                        <option value="20000">20.000 VNĐ</option>
+                        <option value="50000">50.000 VNĐ</option>
+                    </select>
+                </div>
+                <button type="button" id="withdraw-btn" onclick="handleWithdraw()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">Gửi Yêu Cầu Rút Tiền</button>
+            </div>
+
+            <h4 style="color: #1e293b; margin-bottom: 8px;">Lịch Sử Giao Dịch</h4>
+            <table>
+                <thead>
+                    <tr><th>Thời gian</th><th>Hình thức</th><th>Số tiền</th><th>Trạng thái</th></tr>
+                </thead>
+                <tbody id="history-withdraw-body">
+                    <tr><td colspan="4" style="text-align:center; color:#777;">Chưa có lịch sử giao dịch</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- FIREBASE SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD1_YT9MACIh28WuJOC-9ih3Xk-CSt3LQ0",
+            authDomain: "web1-dcd7a.firebaseapp.com",
+            projectId: "web1-dcd7a",
+            storageBucket: "web1-dcd7a.firebasestorage.app",
+            messagingSenderId: "93128679432",
+            appId: "1:93128679432:web:015237d83547b8ed8231bd",
+            measurementId: "G-SGCT4RMT2S"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.db = db;
+        window.FB = { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs };
+    </script>
+
+    <script>
+        // CÁC ĐƯỜNG LINK NHIỆM VỤ MẶC ĐỊNH CHUẨN XÁC
+        let defaultSteps = [
+            { step: 1, name: 'Nhiệm vụ 1: Link4M', provider: 'link4m', url: 'https://link4m.net/pnTyli1', reward: 200, maxTimes: 2 },
+            { step: 2, name: 'Nhiệm vụ 2: Vượt Nhanh', provider: 'vuotnhanh', url: 'https://vuotnhanh.com/N32Z', reward: 50, maxTimes: 1 },
+            { step: 3, name: 'Nhiệm vụ 3: YeuMoney', provider: 'yeumoney', url: 'https://yeumoney.com/sqhVoMXVRXGb', reward: 100, maxTimes: 2 },
+            { step: 4, name: 'Nhiệm vụ 4: LayMa', provider: 'layma', url: 'https://layma.net/w69Mnu7Da', reward: 100, maxTimes: 2 },
+            { step: 5, name: 'Nhiệm vụ 5: Link4Sub', provider: 'link4sub', url: 'https://link4sub.com/DL3iISA1Ls', reward: 100, maxTimes: 2 }
+        ];
+
+        let currentUser = localStorage.getItem('current_logged_user') || null;
+        let userData = { balance: 0, counts: {}, lastDate: '' };
+        let isProcessing = false;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            checkAndShowNoticeModal();
+            await loadDynamicRates();
+
+            if (currentUser) {
+                await loadUserDataFromCloud(currentUser);
+                showMainScreen();
+            }
+        });
+
+        async function checkAndShowNoticeModal() {
+            let hideUntil = localStorage.getItem('hide_notice_until');
+            let now = new Date().getTime();
+
+            if (hideUntil && now < parseInt(hideUntil)) {
+                return;
+            }
+
+            try {
+                if (window.FB && window.db) {
+                    let ref = window.FB.doc(window.db, "settings", "notice");
+                    let snap = await window.FB.getDoc(ref);
+                    if (snap.exists()) {
+                        let d = snap.data();
+                        document.getElementById("modal-title-label").innerText = d.title || "📜 Thông Báo Hệ Thống";
+                        document.getElementById("modal-content-label").innerText = d.content || "Chào mừng bạn đến với hệ thống Kiếm Tiền Cloud!";
+                        document.getElementById("notice-modal").style.display = "flex";
+                        return;
+                    }
+                }
+            } catch(e) {}
+
+            document.getElementById("modal-title-label").innerText = "📜 Thông Báo Hệ Thống";
+            document.getElementById("modal-content-label").innerText = "Chào mừng bạn đến với hệ thống Kiếm Tiền Cloud! Hãy hoàn thành nhiệm vụ vượt link mỗi ngày để tích lũy số dư đổi thưởng nhé.";
+            document.getElementById("notice-modal").style.display = "flex";
+        }
+
+        window.closeNoticeModal = function() {
+            let isChecked = document.getElementById("hide-2h-checkbox").checked;
+            if (isChecked) {
+                let hideTime = new Date().getTime() + (2 * 60 * 60 * 1000);
+                localStorage.setItem('hide_notice_until', hideTime);
+            }
+            document.getElementById("notice-modal").style.display = "none";
+        };
+
+        // HÀM TẢI RATE CÓ TÍCH HỢP FALLBACK AN TOÀN ĐỂ KHÔNG BAO GIỜ MẤT LINK
+        async function loadDynamicRates() {
+            try {
+                if (window.FB && window.db) {
+                    let ref = window.FB.doc(window.db, "settings", "rates");
+                    let snap = await window.FB.getDoc(ref);
+                    if (snap.exists()) {
+                        let firebaseRates = snap.data().list;
+                        if (firebaseRates && firebaseRates.length > 0) {
+                            defaultSteps = firebaseRates.map((r, index) => {
+                                let def = defaultSteps[index] || defaultSteps[0];
+                                return {
+                                    step: r.step || def.step,
+                                    name: r.name ? r.name.replace(/Bước/g, 'Nhiệm vụ') : def.name,
+                                    provider: r.provider || def.provider,
+                                    url: r.url || def.url,
+                                    reward: r.reward !== undefined ? r.reward : def.reward,
+                                    maxTimes: r.maxTimes !== undefined ? r.maxTimes : def.maxTimes
+                                };
+                            });
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        window.switchAuthTab = function(tabName) {
+            document.querySelectorAll('.auth-tab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(el => el.classList.remove('active'));
+            if (tabName === 'login') {
+                document.querySelectorAll('.auth-tab')[0].classList.add('active');
+                document.getElementById('login-form').classList.add('active');
+            } else {
+                document.querySelectorAll('.auth-tab')[1].classList.add('active');
+                document.getElementById('register-form').classList.add('active');
+            }
+        }
+
+        window.handleRegister = async function() {
+            let uName = document.getElementById('reg-user').value.trim();
+            let pass = document.getElementById('reg-pass').value.trim();
+            if (!uName || !pass) return alert('Vui lòng nhập đầy đủ thông tin tài khoản và mật khẩu!');
+            if (!window.FB) return alert('Đang kết nối database, vui lòng thử lại sau 2 giây!');
+
+            try {
+                let userRef = window.FB.doc(window.db, "users", uName);
+                let userDoc = await window.FB.getDoc(userRef);
+                if (userDoc.exists()) return alert('Tài khoản này đã tồn tại trên hệ thống!');
+
+                await window.FB.setDoc(userRef, { password: pass, balance: 0, counts: {}, lastDate: '' });
+                alert('Đăng ký tài khoản thành công!');
+                switchAuthTab('login');
+                document.getElementById('login-user').value = uName;
+            } catch (err) { alert('Lỗi kết nối: ' + err.message); }
+        }
+
+        window.handleLogin = async function() {
+            let uName = document.getElementById('login-user').value.trim();
+            let pass = document.getElementById('login-pass').value.trim();
+            if (!uName || !pass) return alert('Vui lòng nhập đầy đủ tài khoản và mật khẩu!');
+            if (!window.FB) return alert('Đang kết nối database, vui lòng thử lại sau 2 giây!');
+
+            try {
+                let userRef = window.FB.doc(window.db, "users", uName);
+                let userDoc = await window.FB.getDoc(userRef);
+                if (!userDoc.exists()) return alert('Tài khoản không tồn tại trong hệ thống!');
+                let data = userDoc.data();
+                if (data.password !== pass) return alert('Mật khẩu đăng nhập không chính xác!');
+
+                currentUser = uName;
+                localStorage.setItem('current_logged_user', currentUser);
+                await loadUserDataFromCloud(currentUser);
+                showMainScreen();
+            } catch (err) { alert('Lỗi kết nối: ' + err.message); }
+        }
+
+        window.handleLogout = function() {
+            localStorage.removeItem('current_logged_user');
+            location.reload();
+        }
+
+        async function loadUserDataFromCloud(uName) {
+            try {
+                let ref = window.FB.doc(window.db, "users", uName);
+                let snap = await window.FB.getDoc(ref);
+                if (snap.exists()) {
+                    userData = snap.data();
+                    if (!userData.counts) userData.counts = {};
+                    let todayStr = new Date().toDateString();
+                    if (userData.lastDate !== todayStr) {
+                        userData.counts = {};
+                        userData.lastDate = todayStr;
+                        await window.FB.updateDoc(ref, { counts: {}, lastDate: todayStr });
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function saveUserDataToCloud() {
+            try {
+                let ref = window.FB.doc(window.db, "users", currentUser);
+                await window.FB.updateDoc(ref, { balance: userData.balance, counts: userData.counts, lastDate: userData.lastDate });
+            } catch(e) {}
+        }
+
+        function showMainScreen() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('main-screen').style.display = 'block';
+            document.getElementById('current-user-label').innerText = currentUser;
+            loadUserData();
+        }
+
+        window.switchTab = function(tabId, evt) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if (evt) evt.target.classList.add('active');
+            if (tabId === 'user-tab') loadUserData();
+            if (tabId === 'withdraw-tab') loadWithdrawData();
+        }
+
+        function loadUserData() {
+            document.getElementById('balance-display').innerText = userData.balance.toLocaleString();
+            let container = document.getElementById('steps-container');
+            container.innerHTML = '';
+            
+            defaultSteps.forEach(s => {
+                let doneCount = userData.counts[s.step] || 0;
+                let isMax = doneCount >= s.maxTimes;
+                
+                container.innerHTML += `
+                    <div class="step-card ${isMax ? 'completed' : ''}">
+                        <span class="reward-badge">+${s.reward} VNĐ</span>
+                        <b>${s.name}</b> <span style="font-size:12px; color:#64748b;">(Đã vượt: ${doneCount}/${s.maxTimes} lần)</span><br>
+                        <a href="${s.url}" target="_blank" class="btn" ${isMax ? 'style="pointer-events:none;background:#cbd5e1;"' : ''}>👉 Làm Nhiệm Vụ</a>
+                        <div class="input-group">
+                            <input type="text" id="input-step-${s.step}" placeholder="${isMax ? 'Đã hoàn thành định mức hôm nay' : 'Dán key nhận được vào đây...'}" ${isMax ? 'disabled' : ''}>
+                            <button type="button" class="btn-verify" onclick="verifyKey(${s.step}, '${s.provider}', ${s.reward}, ${s.maxTimes})" ${isMax ? 'disabled' : ''}>Xác Nhận</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.verifyKey = async function(stepNum, provider, rewardAmount, maxTimes) {
+            if (isProcessing) return;
+            let inputField = document.getElementById('input-step-' + stepNum);
+            let inputVal = inputField.value.trim();
+            if (!inputVal) return alert('Vui lòng dán mã Key vào ô trống trước khi xác nhận!');
+
+            if (!inputVal.toUpperCase().startsWith(provider.toUpperCase() + "-")) {
+                return alert(`⚠️ Mã Key này không đúng định dạng của ${provider.toUpperCase()}! Vui lòng lấy đúng key của nhiệm vụ này.`);
+            }
+
+            try {
+                let keyRef = window.FB.doc(window.db, "used_keys", inputVal);
+                let keySnap = await window.FB.getDoc(keyRef);
+
+                if (!keySnap.exists()) return alert('⚠️ Key không hợp lệ hoặc đã hết hạn tồn tại!');
+                let keyData = keySnap.data();
+                if (keyData.used) return alert('⚠️ Key này đã được sử dụng rồi! Mỗi key chỉ dùng được 1 lần duy nhất.');
+
+                let doneCount = userData.counts[stepNum] || 0;
+                if (doneCount >= maxTimes) return alert('Bạn đã hoàn thành đủ số lần tối đa cho nhiệm vụ này trong ngày!');
+
+                isProcessing = true;
+                await window.FB.setDoc(keyRef, { used: true }, { merge: true });
+
+                userData.counts[stepNum] = doneCount + 1;
+                userData.balance += rewardAmount;
+                await saveUserDataToCloud();
+
+                document.getElementById('balance-display').innerText = userData.balance.toLocaleString();
+                alert(`🎉 Xác nhận thành công! Cộng +${rewardAmount} VNĐ vào ví.`);
+                loadUserData();
+                setTimeout(() => { isProcessing = false; }, 1500);
+            } catch (err) {
+                isProcessing = false;
+                alert('Lỗi xác thực hệ thống: ' + err.message);
+            }
+        };
+
+        window.handleWithdraw = async function() {
+            let method = document.getElementById('pay-method').value;
+            let fullname = document.getElementById('pay-fullname').value.trim();
+            let account = document.getElementById('pay-account').value.trim();
+            let phone = document.getElementById('pay-phone').value.trim();
+            let bankInput = document.getElementById('bank-name-input').value.trim();
+            let amount = parseInt(document.getElementById('pay-amount').value);
+
+            if (amount > userData.balance) return alert('Số dư trong ví của bạn không đủ để thực hiện rút số tiền này!');
+            if (method !== 'TheCao') {
+                if (!fullname) return alert('Vui lòng nhập họ tên chủ tài khoản!');
+                if (method === 'NganHang' && !bankInput) return alert('Vui lòng nhập tên ngân hàng của bạn!');
+            }
+            if (!account || !phone) return alert('Vui lòng điền đầy đủ số tài khoản/số ví và số điện thoại!');
+
+            let querySnapshot = await window.FB.getDocs(window.FB.collection(window.db, "withdraw_requests"));
+            let hasPending = false;
+            querySnapshot.forEach(docSnap => {
+                let d = docSnap.data();
+                if (d.user === currentUser && d.status === 'Đang chờ duyệt') hasPending = true;
+            });
+            if (hasPending) return alert('⚠️ Bạn đang có một yêu cầu rút tiền khác đang chờ hệ thống xử lý!');
+
+            let fullMethodDetails = method === 'TheCao' ? `Thẻ cào (${document.getElementById('card-provider').value})` : 
+                                    (method === 'NganHang' ? `Ngân hàng (${bankInput}) - ${fullname} (STK: ${account}) - SĐT: ${phone}` : 
+                                    `${method} - ${fullname} (STK: ${account}) - SĐT: ${phone}`);
+
+            userData.balance -= amount;
+            await saveUserDataToCloud();
+
+            try {
+                await window.FB.addDoc(window.FB.collection(window.db, "withdraw_requests"), {
+                    user: currentUser,
+                    method: fullMethodDetails,
+                    account: account,
+                    amount: amount,
+                    time: new Date().toLocaleString(),
+                    timestamp: Date.now(),
+                    status: 'Đang chờ duyệt'
+                });
+                alert('Gửi yêu cầu rút tiền thành công! Vui lòng chờ hệ thống xét duyệt.');
+                loadUserData();
+                loadWithdrawData();
+            } catch (err) { alert('Lỗi: ' + err.message); }
+        };
+
+        async function loadWithdrawData() {
+            document.getElementById('withdraw-balance').innerText = userData.balance.toLocaleString();
+            let tbody = document.getElementById('history-withdraw-body');
+            try {
+                let querySnapshot = await window.FB.getDocs(window.FB.collection(window.db, "withdraw_requests"));
+                let userReqs = [];
+                let sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+                let now = Date.now();
+                let balanceUpdated = false;
+
+                for (let docSnap of querySnapshot.docs) {
+                    let d = docSnap.data();
+                    let reqId = docSnap.id;
+                    if (d.user === currentUser) {
+                        if (d.status === 'Đang chờ duyệt' && d.timestamp && (now - d.timestamp > sevenDaysMs)) {
+                            let reqRef = window.FB.doc(window.db, "withdraw_requests", reqId);
+                            await window.FB.updateDoc(reqRef, { status: 'Từ chối (Quá hạn 7 ngày)' });
+                            userData.balance += d.amount;
+                            balanceUpdated = true;
+                            d.status = 'Từ chối (Quá hạn 7 ngày)';
+                        }
+                        userReqs.push(d);
+                    }
+                }
+
+                if (balanceUpdated) {
+                    await saveUserDataToCloud();
+                    document.getElementById('withdraw-balance').innerText = userData.balance.toLocaleString();
+                    document.getElementById('balance-display').innerText = userData.balance.toLocaleString();
+                }
+
+                if (userReqs.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#777;">Chưa có lịch sử giao dịch</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                userReqs.reverse().forEach(r => {
+                    let color = r.status === 'Đã duyệt' ? '#059669' : (r.status.includes('Từ chối') ? '#dc2626' : '#d97706');
+                    tbody.innerHTML += `<tr><td>${r.time}</td><td>${r.method}</td><td><b>${r.amount.toLocaleString()}đ</b></td><td><span style="color:${color}; font-weight:600;">${r.status}</span></td></tr>`;
+                });
+            } catch (e) {}
+        }
+
+        window.toggleMethod = function() {
+            let method = document.getElementById('pay-method').value;
+            document.getElementById('bank-group').style.display = method === 'NganHang' ? 'block' : 'none';
+            document.getElementById('card-type-group').style.display = method === 'TheCao' ? 'block' : 'none';
+            document.getElementById('fullname-group').style.display = method === 'TheCao' ? 'none' : 'block';
+            document.getElementById('account-label').innerText = method === 'TheCao' ? 'nhập gmail / Ghi chú:' : 'Số tài khoản / Số ví:';
+        };
+    </script>
+</body>
+</html>
