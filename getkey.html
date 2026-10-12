@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lấy Key Bảo Mật (One-Time)</title>
+    <title>Lấy Key Bảo Mật (Chống Gian Lận)</title>
     <style>
         * { box-sizing: border-box; font-family: Arial, sans-serif; }
         body { background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
@@ -12,12 +12,11 @@
         .key-box { font-size: 16px; font-weight: bold; color: #28a745; background: #e8f5e9; padding: 12px; border-radius: 8px; border: 2px dashed #28a745; margin: 15px 0; letter-spacing: 1px; word-break: break-all; font-family: monospace; }
         .btn { background: #007bff; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }
         .btn:hover { background: #0056b3; }
-        .expired-msg { color: red; font-weight: bold; display: none; margin-top: 10px; }
+        .expired-msg, .fraud-msg { color: red; font-weight: bold; display: none; margin-top: 10px; line-height: 1.5; }
         .provider-title { background: #17a2b8; color: white; display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
-        .error-screen { color: #d9534f; font-weight: bold; padding: 20px; }
     </style>
 
-    <!-- FIREBASE SDK ĐỂ LƯU TRỮ VÀ KIỂM TRA KEY MỘT LẦN -->
+    <!-- FIREBASE SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
@@ -42,41 +41,71 @@
 
     <div class="card" id="main-card">
         <div class="provider-title" id="provider-badge">Nhiệm Vụ</div>
-        <h3>🎉 Vượt Link Thành Công!</h3>
         
-        <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy sau: <span id="countdown">30</span> giây</div>
-
-        <div class="key-box" id="key-text">Đang tạo mã độc quyền...</div>
-        
-        <button class="btn" id="copy-btn" onclick="copyAndDestroyKey()">📋 Sao Chép Key & Kích Hoạt 1 Lần</button>
+        <div id="valid-content">
+            <h3>🎉 Vượt Link Thành Công!</h3>
+            <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy sau: <span id="countdown">30</span> giây</div>
+            <div class="key-box" id="key-text">Đang tạo mã độc quyền...</div>
+            <button class="btn" id="copy-btn" onclick="copyAndDestroyKey()">📋 Sao Chép Key & Kích Hoạt 1 Lần</button>
+        </div>
 
         <p class="expired-msg" id="expired-text">⚠️ Key đã được sử dụng hoặc hết hạn! Vui lòng thực hiện vượt link mới.</p>
+        <p class="fraud-msg" id="fraud-text">🚨 <b>Cảnh báo gian lận!</b><br>Bạn chưa hoàn thành vượt link hoặc truy cập trái phép trực tiếp vào trang lấy key. Vui lòng quay lại hệ thống để làm nhiệm vụ chuẩn xác!</p>
     </div>
 
     <script>
-        // === HÃY SỬA TÊN BIẾN NÀY CHO TỪNG FILE TƯƠNG ỨNG ===
-        // - File link4m.html   -> để là 'link4m'
-        // - File vuotnhanh.html -> để là 'vuotnhanh'
-        // - File yeumoney.html  -> để là 'yeumoney'
-        // - File layma.html     -> để là 'layma'
-        // - File link4sub.html  -> để là 'link4sub'
+        // === SỬA TÊN BIẾN NÀY CHO TỪNG FILE TƯƠNG ỨNG ===
+        // 'link4m', 'vuotnhanh', 'yeumoney', 'layma', 'link4sub'
         const PROVIDER_NAME = 'link4m'; 
         // ====================================================
 
         document.getElementById("provider-badge").innerText = "Phân Loại: " + PROVIDER_NAME.toUpperCase();
+
+        // 🛡️ HỆ THỐNG CHỐNG GIAN LẬN (REFERRER VALIDATION & BYPASS CHECK)
+        // Danh sách tên miền rút gọn chính thống của từng nhà cung cấp
+        const allowedDomains = {
+            'link4m': ['link4m.org', 'link4m.net'],
+            'vuotnhanh': ['vuotnhanh.com'],
+            'yeumoney': ['yeumoney.com'],
+            'layma': ['layma.net'],
+            'link4sub': ['link4sub.com']
+        };
+
+        function checkAntiFraud() {
+            let referrer = document.referrer;
+            // Nếu người dùng gõ thẳng URL hoặc mở trực tiếp mà không có referrer từ trang rút gọn
+            // (Lưu ý: Cho phép qua lại nội bộ từ trang chính GitHub Pages của bạn nếu cần)
+            let validList = allowedDomains[PROVIDER_NAME] || [];
+            let isLegit = validList.some(domain => referrer.includes(domain));
+
+            // Bật dòng bên dưới nếu bạn muốn bắt buộc phải có nguồn từ trang rút gọn đúng chuẩn:
+            // if (!isLegit && !referrer.includes('huynhphuoctrong10-dot.github.io')) {
+            //     triggerFraudBlock();
+            //     return false;
+            // }
+            return true;
+        }
+
+        function triggerFraudBlock() {
+            document.getElementById("valid-content").style.display = "none";
+            document.getElementById("expired-text").style.display = "none";
+            document.getElementById("fraud-text").style.display = "block";
+        }
+
         let currentKey = "";
 
         async function initUniqueKey() {
+            // Kiểm tra gian lận trước khi cấp key
+            if (!checkAntiFraud()) return;
+
             let d = new Date();
             let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
             
-            // Tạo đoạn mã random độc quyền cho phiên này
             let randomHex = Math.random().toString(36).substring(2, 10).toUpperCase();
             currentKey = `${PROVIDER_NAME.toUpperCase()}-${randomHex}-${dateStr}`;
             
             document.getElementById("key-text").innerText = currentKey;
 
-            // Lưu trạng thái key chưa sử dụng lên Firestore
             try {
                 if (window.db && window.FB) {
                     let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
@@ -103,7 +132,6 @@
             alert("Đã sao chép Key bảo mật thành công!\n(Key này chỉ có hiệu lực sử dụng 1 lần duy nhất).");
             isCopied = true;
 
-            // Đánh dấu key đã được sử dụng trên Cloud để chặn người thứ 2 dùng lại
             try {
                 if (window.db && window.FB) {
                     let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
