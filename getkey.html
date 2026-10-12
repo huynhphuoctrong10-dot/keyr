@@ -85,28 +85,26 @@
         
         <div id="valid-content" style="display: none;">
             <h3>🎉 Vượt Link Thành Công!</h3>
-            <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy sau: <span id="countdown">30</span> giây</div>
+            <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy hiển thị sau: <span id="countdown">30</span> giây</div>
             <div class="key-box" id="key-text">Đang tạo mã độc quyền...</div>
-            <button class="btn" id="copy-btn" onclick="copyAndDestroyKey()">📋 Sao Chép Key & Kích Hoạt 1 Lần</button>
+            <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text">⚠️ Key đã được sử dụng hoặc hết hạn! Vui lòng thực hiện vượt link mới.</p>
+        <p class="expired-msg" id="expired-text">⚠️ Đã hết thời gian hiển thị mã trên trang này. Vui lòng lấy lại link mới nếu chưa copy.</p>
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
-            Bạn không thể nhập trực tiếp URL hoặc tìm kiếm thủ công. Hệ thống yêu cầu phải hoàn thành vượt link chính thống từ các nhà cung cấp!
+            Bạn không thể nhập trực tiếp URL hoặc tìm kiếm thủ công. Hệ thống yêu cầu phải hoàn thành vượt link chính thống!
         </div>
     </div>
 
     <script>
-        // 1. Đọc tham số provider từ URL
         const urlParams = new URLSearchParams(window.location.search);
         let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
 
-        // 2. Danh sách tên miền chính thức bắt buộc cho từng nhà cung cấp
         const providerRules = {
             'vuotnhanh': { name: 'vuotnhanh', validDomain: 'vuotnhanh.com' },
-            'link4m': { name: 'link4m', validDomain: 'link4m' }, // Khớp với link4m.net hoặc link4m.org
+            'link4m': { name: 'link4m', validDomain: 'link4m' },
             'link4sub': { name: 'link4sub', validDomain: 'link4sub.com' },
             'layma': { name: 'layma', validDomain: 'layma.net' },
             'yeumoney': { name: 'yeumoney', validDomain: 'yeumoney.com' }
@@ -115,20 +113,16 @@
         const rule = providerRules[rawProvider];
         let referrer = document.referrer.toLowerCase();
 
-        // 3. Kiểm tra bảo mật nghiêm ngặt: 
-        // Phải có provider hợp lệ VÀ nguồn truy cập (referrer) phải chứa đúng tên miền chính thức của nhà cung cấp đó.
         let isLegit = false;
-        if (rule && referrer.includes(rule.validDomain)) {
-            isLegit = true;
+        if (rule && (referrer.includes(rule.validDomain) || referrer === "")) {
+            isLegit = true; // Cho phép cả trường hợp trình duyệt chặn referrer nhưng có param chuẩn
         }
 
-        if (!isLegit) {
-            // Chặn ngay lập tức nếu gõ trực tiếp hoặc sai nguồn
+        if (!rule) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
         } else {
-            // Hợp lệ: Cho hiển thị giao diện lấy key
             document.getElementById("error-box").style.display = "none";
             document.getElementById("valid-content").style.display = "block";
             const PROVIDER_NAME = rule.name;
@@ -148,6 +142,7 @@
                 try {
                     if (window.db && window.FB) {
                         let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
+                        // Chỉ tạo key với trạng thái used: false (Chưa sử dụng)
                         await window.FB.setDoc(keyRef, { provider: PROVIDER_NAME, used: false, time: new Date().toLocaleString() });
                     }
                 } catch(e) {}
@@ -161,28 +156,20 @@
             const timerInterval = setInterval(function() {
                 timeLeft--;
                 document.getElementById("countdown").innerText = timeLeft;
-                if (timeLeft <= 0) destroyKey();
+                if (timeLeft <= 0) hideKeyDisplay();
             }, 1000);
 
-            window.copyAndDestroyKey = async function() {
-                if (isCopied || timeLeft <= 0 || !currentKey) return;
-                
+            // Chỉ copy key vào bộ nhớ tạm, KHÔNG đổi trạng thái used trên Firebase ở bước này
+            window.copyKeyOnly = function() {
+                if (!currentKey) return;
                 navigator.clipboard.writeText(currentKey);
-                alert("Đã sao chép Key bảo mật thành công!\n(Key này chỉ có hiệu lực sử dụng 1 lần duy nhất).");
+                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại trang chính và dán vào ô xác nhận.");
                 isCopied = true;
-
-                try {
-                    if (window.db && window.FB) {
-                        let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                        await window.FB.setDoc(keyRef, { provider: PROVIDER_NAME, used: true, time: new Date().toLocaleString() }, { merge: true });
-                    }
-                } catch(e) {}
-
-                destroyKey();
             };
 
-            function destroyKey() {
+            function hideKeyDisplay() {
                 clearInterval(timerInterval);
+                document.getElementById("key-textstyle")?.remove();
                 document.getElementById("key-text").style.display = "none";
                 document.getElementById("copy-btn").style.display = "none";
                 document.getElementById("timer-display").style.display = "none";
@@ -192,4 +179,3 @@
     </script>
 </body>
 </html>
- 
