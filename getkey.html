@@ -104,20 +104,24 @@
         let referrer = document.referrer.toLowerCase();
         
         let isLegit = false;
-        // Bổ sung đầy đủ tên các trang rút gọn phổ biến vào danh sách nguồn hợp lệ
+        // Thêm đầy đủ các domain rút gọn thường dùng vào danh sách nguồn hợp lệ
         const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io', 'uplcm'];
         
         if (rawProvider) {
             let hasValidReferrer = validSources.some(src => referrer.includes(src));
             
-            // Cho phép đi qua nếu khớp nguồn rút gọn, hoặc nếu referrer trống (trên mobile hay bị ẩn), 
-// nhưng bắt buộc phải có thông số ?provider= hợp lệ để loại trừ trường hợp dán thẳng link trắng trơn lên thanh tìm kiếm
-            if (hasValidReferrer || referrer === "" || referrer.includes("huynhphuoctrong10")) {
+            // Sửa lỗi: Chấp nhận khi có nguồn hợp lệ, HOẶC khi referrer trống (do mobile ẩn), 
+            // HOẶC nếu người dùng gõ trực tiếp lên thanh tìm kiếm (bị phát hiện qua performance.navigation.type === 1 khi không có tham số / referrer trống)
+            if (hasValidReferrer || referrer === "") {
                 isLegit = true;
             }
         }
 
-        // Nếu không có provider hoặc không hợp lệ -> Chặn và báo lỗi đỏ
+        // Chặn nếu đích thực là dán trực tiếp / gõ tay lên thanh tìm kiếm (load lại trang trắng trơn không có referrer và không đi qua chuyển hướng)
+        if (referrer === "" && performance.navigation.type === 1 && !urlParams.has('provider')) {
+            isLegit = false;
+        }
+
         if (!rawProvider || !isLegit) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
@@ -136,6 +140,7 @@
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
+                // Tạo key hoàn toàn mới mỗi lần load trang hợp lệ
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 document.getElementById("key-text").innerText = currentKey;
 
@@ -160,7 +165,7 @@
                 if (timeLeft <= 0) hideKeyDisplay();
             }, 1000);
 
-            // Sửa lỗi ấn copy làm mất/reset trang web
+            // Sửa lỗi bấm nút sao chép làm mất/reset trang web
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
                 
