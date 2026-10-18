@@ -59,31 +59,11 @@
             color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; display: none;
         }
     </style>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
-        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyD1_YT9MACIh28WuJOC-9ih3Xk-CSt3LQ0",
-            authDomain: "web1-dcd7a.firebaseapp.com",
-            projectId: "web1-dcd7a",
-            storageBucket: "web1-dcd7a.firebasestorage.app",
-            messagingSenderId: "93128679432",
-            appId: "1:93128679432:web:015237d83547b8ed8231bd",
-            measurementId: "G-SGCT4RMT2S"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        window.db = db;
-        window.FB = { doc, setDoc };
-    </script>
 </head>
 <body>
 
     <div class="card" id="main-card">
-        <div class="provider-title" id="provider-badge">Kiểm tra bảo mật...</div>
+        <div class="provider-title" id="provider-badge">Đang xử lý...</div>
         
         <div id="valid-content" style="display: none;">
             <h3>🎉 Vượt Link Thành Công!</h3>
@@ -113,19 +93,40 @@
         const rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
         let currentKey = "";
         let timerInterval = null;
+        const BACK_LINK = "https://trong10-dot.github.io/"; // Thay link của bạn
 
-        // Link chuyển hướng sau khi hết/đã lấy key
-        const BACK_LINK = "https://trong10-dot.github.io/"; // Thay link của bạn vào đây
+        // === Firebase - tải ngầm, không chờ đợi ===
+        let db = null, FB = null;
+        import("https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js")
+            .then(mod => {
+                const app = mod.initializeApp({
+                    apiKey: "AIzaSyD1_YT9MACIh28WuJOC-9ih3Xk-CSt3LQ0",
+                    authDomain: "web1-dcd7a.firebaseapp.com",
+                    projectId: "web1-dcd7a",
+                    storageBucket: "web1-dcd7a.firebasestorage.app",
+                    messagingSenderId: "93128679432",
+                    appId: "1:93128679432:web:015237d83547b8ed8231bd"
+                });
+                return import("https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js")
+                    .then(fsMod => {
+                        db = fsMod.getFirestore(app);
+                        FB = { doc: fsMod.doc, setDoc: fsMod.setDoc };
+                    });
+            })
+            .catch(() => {});
+        // ===========================================
 
         if (!rawProvider) {
             document.getElementById("error-box").style.display = "block";
+            document.getElementById("provider-badge").style.display = "none";
             return;
         }
 
         const sessionKey = `session_done_${rawProvider}`;
 
-        // ✅ Đã từng load trước đó → Reload → Hiện thông báo & chuyển trang
+        // === Trường hợp reload lại trang ===
         if (sessionStorage.getItem(sessionKey)) {
+            document.getElementById("provider-badge").style.display = "none";
             document.getElementById("reload-msg").style.display = "block";
             setTimeout(() => {
                 window.location.href = BACK_LINK + "?provider=" + rawProvider + "&status=reloaded";
@@ -133,10 +134,10 @@
             return;
         }
 
-        // ✅ Lần đầu mở link
+        // === Lần đầu mở link - Hiển thị NGAY lập tức ===
         sessionStorage.setItem(sessionKey, 'active');
-        document.getElementById("valid-content").style.display = "block";
         document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + rawProvider.toUpperCase();
+        document.getElementById("valid-content").style.display = "block";
 
         // Tạo key
         const d = new Date();
@@ -145,19 +146,17 @@
         currentKey = `${rawProvider.toUpperCase()}-${randomHex}-${dateStr}`;
         document.getElementById("key-text").innerText = currentKey;
 
-        // Lưu Firebase
-        (async () => {
-            try {
-                if (window.db && window.FB) {
-                    const keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                    await window.FB.setDoc(keyRef, {
-                        provider: rawProvider,
-                        used: false,
-                        time: d.toLocaleString()
-                    });
-                }
-            } catch(e) {}
-        })();
+        // Lưu Firebase - chạy ngầm
+        function saveToFirebase() {
+            if (db && FB) {
+                FB.setDoc(FB.doc(db, "used_keys", currentKey), {
+                    provider: rawProvider,
+                    used: false,
+                    time: d.toLocaleString()
+                }).catch(() => {});
+            }
+        }
+        setTimeout(saveToFirebase, 100);
 
         // Đếm ngược
         let timeLeft = 30;
