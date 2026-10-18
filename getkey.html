@@ -102,10 +102,13 @@
         const urlParams = new URLSearchParams(window.location.search);
         let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
 
+        // Cập nhật cấu hình phân loại Link4Sub
         const providerRules = {
             'vuotnhanh': { name: 'vuotnhanh', validDomain: 'vuotnhanh.com' },
             'link4m': { name: 'link4m', validDomain: 'link4m' },
             'link4sub': { name: 'link4sub', validDomain: 'link4sub.com' },
+            'link4sub_easy': { name: 'link4sub (Dễ)', validDomain: 'link4sub.com' },
+            'link4sub_hard': { name: 'link4sub (Khó)', validDomain: 'link4sub.com' },
             'layma': { name: 'layma', validDomain: 'layma.net' },
             'yeumoney': { name: 'yeumoney', validDomain: 'yeumoney.com' }
         };
@@ -132,7 +135,7 @@
 
             async function initUniqueKey() {
                 // Cố định key bằng sessionStorage để khi F5 trang không bị sinh key mới
-                let storageKey = `active_key_${PROVIDER_NAME}`;
+                let storageKey = `active_key_${rawProvider}`;
                 let savedKey = sessionStorage.getItem(storageKey);
 
                 if (savedKey) {
@@ -145,7 +148,10 @@
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 
                 let randomHex = Math.random().toString(36).substring(2, 10).toUpperCase();
-                currentKey = `${PROVIDER_NAME.toUpperCase()}-${randomHex}-${dateStr}`;
+                
+                // Định dạng tiền tố Provider (Thay khoảng trắng/kí tự đặc biệt thành dấu gạch dưới cho đẹp)
+                let keyPrefix = rawProvider.toUpperCase();
+                currentKey = `${keyPrefix}-${randomHex}-${dateStr}`;
                 
                 sessionStorage.setItem(storageKey, currentKey);
                 document.getElementById("key-text").innerText = currentKey;
@@ -153,7 +159,7 @@
                 try {
                     if (window.db && window.FB) {
                         let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                        await window.FB.setDoc(keyRef, { provider: PROVIDER_NAME, used: false, time: new Date().toLocaleString() });
+                        await window.FB.setDoc(keyRef, { provider: rawProvider, used: false, time: new Date().toLocaleString() });
                     }
                 } catch(e) {}
             }
@@ -188,3 +194,4 @@
     </script>
 </body>
 </html>
+ 
