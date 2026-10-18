@@ -90,34 +90,37 @@
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text">⚠️ Đã hết thời gian hiển thị mã trên trang này. Vui lòng lấy lại link mới nếu chưa copy.</p>
+        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key này đã được lấy hoặc đã hết thời gian hiển thị trong phiên này. Vui lòng đợi đủ 24 giờ để thực hiện lại nhiệm vụ mới!</p>
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
-            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link mới từ App!
+            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp hoặc bạn đã nhận key nhiệm vụ này trong vòng 24 giờ qua!
         </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
-        let requestToken = (urlParams.get('token') || '').trim();
-
         let referrer = document.referrer.toLowerCase();
         
-        // Bắt buộc phải có Referrer chuyển hướng từ các trang hợp lệ HOẶC có Token hợp lệ
         let isLegit = false;
-        
-        // Danh sách nguồn chuyển hướng được phép
-        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly'];
+        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io'];
         
         if (rawProvider) {
             let hasValidReferrer = validSources.some(src => referrer.includes(src));
-            
-            // Nếu dùng trình duyệt di động ẩn referrer thì bắt buộc kiểm tra xem có token/lượt truy cập mới không
             if (hasValidReferrer || (referrer === "" && performance.navigation.type !== 1)) {
                 isLegit = true;
             }
+        }
+
+        // KIỂM TRA CHẶN 24 GIỜ THEO TỪNG TASK (PROVIDER)
+        let cooldownKey = `cooldown_task_${rawProvider}`;
+        let lastTime = localStorage.getItem(cooldownKey);
+        let now = new Date().getTime();
+        let twentyFourHours = 24 * 60 * 60 * 1000;
+
+        if (lastTime && (now - parseInt(lastTime) < twentyFourHours)) {
+            isLegit = false; // Đã nhận key trong vòng 24h qua -> Chặn hoàn toàn
         }
 
         if (!rawProvider || !isLegit) {
@@ -134,24 +137,14 @@
             let currentKey = "";
 
             async function initUniqueKey() {
-                let storageKey = `session_key_${rawProvider}`;
-                let savedKey = sessionStorage.getItem(storageKey);
+                // Đánh dấu mốc thời gian 24h ngay khi vào trang hợp lệ thành công
+                localStorage.setItem(cooldownKey, now.toString());
 
-                // Nếu người dùng F5 trang -> giữ nguyên key đã cấp trong phiên làm việc này
-                if (savedKey) {
-                    currentKey = savedKey;
-                    document.getElementById("key-text").innerText = currentKey;
-                    return;
-                }
-
-                // Sinh mã Key ngẫu nhiên
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
-                
-                sessionStorage.setItem(storageKey, currentKey);
                 document.getElementById("key-text").innerText = currentKey;
 
                 try {
@@ -179,13 +172,14 @@
                 if (!currentKey) return;
                 navigator.clipboard.writeText(currentKey);
                 alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
+                
+                // KHÓA NGAY LẬP TỨC SAU KHI SAO CHÉP ĐỂ CHỐNG GIAN LẬN COPY NHIỀU LẦN
+                hideKeyDisplay();
             };
 
             function hideKeyDisplay() {
                 clearInterval(timerInterval);
-                document.getElementById("key-text").style.display = "none";
-                document.getElementById("copy-btn").style.display = "none";
-                document.getElementById("timer-display").style.display = "none";
+                document.getElementById("valid-content").style.display = "none";
                 document.getElementById("expired-text").style.display = "block";
             }
         }
