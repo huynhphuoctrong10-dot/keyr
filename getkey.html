@@ -57,7 +57,6 @@
         }
     </style>
 
-    <!-- FIREBASE SDK - Tải bất đồng bộ không chờ hiển thị -->
     <script>
         window.firebaseReady = false;
         const loadFirebase = () => {
@@ -96,101 +95,90 @@
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key này đã được làm mới trang hoặc đã hết thời gian hiển thị!<br>Vui lòng quay lại App thực hiện lại lượt vượt link mới để lấy mã tiếp theo.</p>
+        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key đã hết hiệu lực hoặc trang đã được làm mới!<br>Vui lòng quay lại App lấy link mới!</p>
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
-            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link từ App để nhận mã!
+            Thiếu thông tin xác thực. Vui lòng sử dụng link từ App!
         </div>
     </div>
 
     <script>
+        // ✅ Bước 1: Đọc tham số trước
         const urlParams = new URLSearchParams(window.location.search);
-        let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
-        let referrer = document.referrer.toLowerCase();
-        
-        const sessionKey = `session_valid_${rawProvider}`;
-        
-        // ✅ Kiểm tra: nếu đã từng mở hợp lệ rồi → reload = ẩn key ngay
-        if (sessionStorage.getItem(sessionKey)) {
-            document.getElementById("provider-badge").style.display = "none";
-            document.getElementById("valid-content").style.display = "none";
-            document.getElementById("expired-text").style.display = "block";
+        const rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
+
+        // ✅ Bước 2: Xóa tham số provider khỏi URL ngay lập tức
+        if (rawProvider) {
+            const cleanURL = window.location.origin + window.location.pathname;
+            history.replaceState({}, document.title, cleanURL);
         }
-        else {
-            let isLegit = false;
-            const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io'];
+
+        // ✅ Bước 3: Kiểm tra hợp lệ & hiển thị
+        let referrer = document.referrer.toLowerCase();
+        let isLegit = false;
+        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io'];
+        
+        if (rawProvider) {
+            let hasValidReferrer = validSources.some(src => referrer.includes(src));
+            if (hasValidReferrer || (referrer === "" && performance.navigation.type !== 1)) {
+                isLegit = true;
+            }
+        }
+
+        if (!rawProvider || !isLegit) {
+            document.getElementById("valid-content").style.display = "none";
+            document.getElementById("provider-badge").style.display = "none";
+            document.getElementById("error-box").style.display = "block";
+        } else {
+            document.getElementById("error-box").style.display = "none";
+            document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + rawProvider.toUpperCase();
+            document.getElementById("valid-content").style.display = "block";
             
-            if (rawProvider) {
-                let hasValidReferrer = validSources.some(src => referrer.includes(src));
-                if (hasValidReferrer || (referrer === "" && performance.navigation.type !== 1)) {
-                    isLegit = true;
-                }
+            const PROVIDER_NAME = rawProvider.toUpperCase();
+            let currentKey = "";
+
+            async function initUniqueKey() {
+                let d = new Date();
+                let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+                let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+                
+                currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
+                document.getElementById("key-text").innerText = currentKey;
+
+                const saveToFB = () => {
+                    if (window.db && window.FB) {
+                        window.FB.setDoc(
+                            window.FB.doc(window.db, "used_keys", currentKey), 
+                            { provider: rawProvider, used: false, time: new Date().toLocaleString() }
+                        ).catch(() => {});
+                    } else {
+                        setTimeout(saveToFB, 300);
+                    }
+                };
+                setTimeout(saveToFB, 100);
             }
 
-            if (!rawProvider || !isLegit) {
+            initUniqueKey();
+
+            let timeLeft = 30;
+            const timerInterval = setInterval(function() {
+                timeLeft--;
+                document.getElementById("countdown").innerText = timeLeft;
+                if (timeLeft <= 0) hideKeyDisplay();
+            }, 1000);
+
+            window.copyKeyOnly = function() {
+                if (!currentKey) return;
+                navigator.clipboard.writeText(currentKey);
+                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
+                hideKeyDisplay();
+            };
+
+            function hideKeyDisplay() {
+                clearInterval(timerInterval);
                 document.getElementById("valid-content").style.display = "none";
-                document.getElementById("provider-badge").style.display = "none";
-                document.getElementById("error-box").style.display = "block";
-            } else {
-                // ✅ Lưu đánh dấu phiên hợp lệ → reload sẽ bị khóa
-                sessionStorage.setItem(sessionKey, '1');
-                
-                document.getElementById("error-box").style.display = "none";
-                document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + rawProvider.toUpperCase();
-                document.getElementById("valid-content").style.display = "block";
-                
-                const PROVIDER_NAME = rawProvider.toUpperCase();
-                let currentKey = "";
-
-                async function initUniqueKey() {
-                    let d = new Date();
-                    let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-                    let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
-                    
-                    currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
-                    document.getElementById("key-text").innerText = currentKey;
-
-                    // Lưu Firebase khi sẵn sàng, không chờ đợi
-                    const saveToFB = () => {
-                        if (window.db && window.FB) {
-                            window.FB.setDoc(
-                                window.FB.doc(window.db, "used_keys", currentKey), 
-                                { 
-                                    provider: rawProvider, 
-                                    used: false, 
-                                    time: new Date().toLocaleString() 
-                                }
-                            ).catch(() => {});
-                        } else {
-                            setTimeout(saveToFB, 300);
-                        }
-                    };
-                    setTimeout(saveToFB, 100);
-                }
-
-                initUniqueKey();
-
-                let timeLeft = 30;
-                const timerInterval = setInterval(function() {
-                    timeLeft--;
-                    document.getElementById("countdown").innerText = timeLeft;
-                    if (timeLeft <= 0) hideKeyDisplay();
-                }, 1000);
-
-                window.copyKeyOnly = function() {
-                    if (!currentKey) return;
-                    navigator.clipboard.writeText(currentKey);
-                    alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
-                    hideKeyDisplay();
-                };
-
-                function hideKeyDisplay() {
-                    clearInterval(timerInterval);
-                    sessionStorage.removeItem(sessionKey);
-                    document.getElementById("valid-content").style.display = "none";
-                    document.getElementById("expired-text").style.display = "block";
-                }
+                document.getElementById("expired-text").style.display = "block";
             }
         }
     </script>
