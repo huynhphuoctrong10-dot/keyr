@@ -89,7 +89,7 @@
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key này đã được sao chép hoặc đã hết thời gian hiển thị!<br>Vui lòng quay lại App thực hiện lại lượt vượt link mới để lấy mã tiếp theo.</p>
+        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Đã làm mới trang — Key đã hết hiệu lực!<br>Vui lòng quay lại App thực hiện lại lượt vượt link mới để lấy mã tiếp theo.</p>
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
@@ -103,80 +103,76 @@
         let currentKey = "";
         let timerInterval = null;
 
+        // ✅ Luôn xóa dữ liệu cũ khi trang tải/reload
+        sessionStorage.clear();
+
         if (!rawProvider) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
         } else {
-            document.getElementById("error-box").style.display = "none";
-            document.getElementById("valid-content").style.display = "block";
+            // ✅ Kiểm tra xem đây có phải lần đầu mở link không
+            const isFirstLoad = sessionStorage.getItem('first_load_done');
             
-            const PROVIDER_NAME = rawProvider.toUpperCase();
-            document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + PROVIDER_NAME;
-            
-            // ✅ Kiểm tra xem đã có key cho provider này chưa
-            const storageKey = `secure_key_${rawProvider}`;
-            const savedKey = sessionStorage.getItem(storageKey);
-            const savedTime = sessionStorage.getItem(`${storageKey}_time`);
-            const now = Date.now();
-
-            if (savedKey && savedTime && (now - parseInt(savedTime)) < 30 * 60 * 1000) {
-                // ✅ Có key cũ và chưa hết hạn (30 phút) → dùng lại
-                currentKey = savedKey;
-                document.getElementById("key-text").innerText = currentKey;
+            if (isFirstLoad) {
+                // 🔄 Reload trang → Ẩn key ngay
+                document.getElementById("valid-content").style.display = "none";
+                document.getElementById("provider-badge").style.display = "none";
+                document.getElementById("expired-text").style.display = "block";
             } else {
-                // 🔑 Không có hoặc hết hạn → tạo key mới
-                createAndSaveKey();
-            }
-
-            async function createAndSaveKey() {
+                // 🆕 Lần đầu mở link → Hiển thị key
+                sessionStorage.setItem('first_load_done', 'true');
+                
+                document.getElementById("error-box").style.display = "none";
+                document.getElementById("valid-content").style.display = "block";
+                
+                const PROVIDER_NAME = rawProvider.toUpperCase();
+                document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + PROVIDER_NAME;
+                
+                // Tạo key mới
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
-                
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 document.getElementById("key-text").innerText = currentKey;
-                
-                // Lưu vào sessionStorage
-                sessionStorage.setItem(storageKey, currentKey);
-                sessionStorage.setItem(`${storageKey}_time`, now.toString());
 
-                try {
-                    if (window.db && window.FB) {
-                        let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                        await window.FB.setDoc(keyRef, { 
-                            provider: rawProvider, 
-                            used: false, 
-                            time: new Date().toLocaleString() 
-                        });
-                    }
-                } catch(e) {}
-            }
+                // Lưu lên Firebase
+                (async () => {
+                    try {
+                        if (window.db && window.FB) {
+                            let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
+                            await window.FB.setDoc(keyRef, { 
+                                provider: rawProvider, 
+                                used: false, 
+                                time: new Date().toLocaleString() 
+                            });
+                        }
+                    } catch(e) {}
+                })();
 
-            // ⏱️ Đếm ngược 30 giây
-            let timeLeft = 30;
-            document.getElementById("countdown").innerText = timeLeft;
-            
-            timerInterval = setInterval(function() {
-                timeLeft--;
+                // Đếm ngược 30 giây
+                let timeLeft = 30;
                 document.getElementById("countdown").innerText = timeLeft;
-                if (timeLeft <= 0) hideKeyDisplay();
-            }, 1000);
+                
+                timerInterval = setInterval(function() {
+                    timeLeft--;
+                    document.getElementById("countdown").innerText = timeLeft;
+                    if (timeLeft <= 0) hideKeyDisplay();
+                }, 1000);
 
-            window.copyKeyOnly = function() {
-                if (!currentKey) return;
-                navigator.clipboard.writeText(currentKey);
-                alert("✅ Đã sao chép Key bảo mật thành công!\nHãy quay lại App và dán vào ô xác nhận.");
-                hideKeyDisplay();
-            };
+                window.copyKeyOnly = function() {
+                    if (!currentKey) return;
+                    navigator.clipboard.writeText(currentKey);
+                    alert("✅ Đã sao chép Key bảo mật thành công!\nHãy quay lại App và dán vào ô xác nhận.");
+                    hideKeyDisplay();
+                };
 
-            function hideKeyDisplay() {
-                clearInterval(timerInterval);
-                document.getElementById("valid-content").style.display = "none";
-                document.getElementById("expired-text").style.display = "block";
-                // Xóa key khi hết thời gian hoặc sao chép
-                sessionStorage.removeItem(storageKey);
-                sessionStorage.removeItem(`${storageKey}_time`);
+                function hideKeyDisplay() {
+                    clearInterval(timerInterval);
+                    document.getElementById("valid-content").style.display = "none";
+                    document.getElementById("expired-text").style.display = "block";
+                    sessionStorage.clear();
+                }
             }
         }
     </script>
