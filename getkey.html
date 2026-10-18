@@ -60,7 +60,7 @@
     <!-- FIREBASE SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD1_YT9MACIh28WuJOC-9ih3Xk-CSt3LQ0",
@@ -75,7 +75,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         window.db = db;
-        window.FB = { doc, setDoc, getDoc };
+        window.FB = { doc, setDoc };
     </script>
 </head>
 <body>
@@ -90,11 +90,11 @@
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key này đã được lấy hoặc đã hết thời gian hiển thị trong phiên này. Vui lòng đợi đủ 24 giờ để thực hiện lại nhiệm vụ mới!</p>
+        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key này đã được sao chép hoặc đã hết thời gian hiển thị!<br>Vui lòng quay lại App thực hiện lại lượt vượt link mới để lấy mã tiếp theo.</p>
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
-            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp hoặc bạn đã nhận key nhiệm vụ này trong vòng 24 giờ qua!
+            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link từ App để nhận mã!
         </div>
     </div>
 
@@ -113,16 +113,6 @@
             }
         }
 
-        // KIỂM TRA CHẶN 24 GIỜ THEO TỪNG TASK (PROVIDER)
-        let cooldownKey = `cooldown_task_${rawProvider}`;
-        let lastTime = localStorage.getItem(cooldownKey);
-        let now = new Date().getTime();
-        let twentyFourHours = 24 * 60 * 60 * 1000;
-
-        if (lastTime && (now - parseInt(lastTime) < twentyFourHours)) {
-            isLegit = false; // Đã nhận key trong vòng 24h qua -> Chặn hoàn toàn
-        }
-
         if (!rawProvider || !isLegit) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
@@ -137,13 +127,11 @@
             let currentKey = "";
 
             async function initUniqueKey() {
-                // Đánh dấu mốc thời gian 24h ngay khi vào trang hợp lệ thành công
-                localStorage.setItem(cooldownKey, now.toString());
-
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
+                // Tạo key hoàn toàn mới mỗi lần load trang hợp lệ
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 document.getElementById("key-text").innerText = currentKey;
 
@@ -173,7 +161,7 @@
                 navigator.clipboard.writeText(currentKey);
                 alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
                 
-                // KHÓA NGAY LẬP TỨC SAU KHI SAO CHÉP ĐỂ CHỐNG GIAN LẬN COPY NHIỀU LẦN
+                // Khóa ngay lập tức sau khi sao chép
                 hideKeyDisplay();
             };
 
