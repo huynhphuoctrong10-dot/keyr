@@ -81,12 +81,12 @@
 <body>
 
     <div class="card" id="main-card">
-        <div class="provider-title" id="provider-badge">Kiểm tra nhiệm vụ...</div>
+        <div class="provider-title" id="provider-badge">Kiểm tra bảo mật...</div>
         
         <div id="valid-content" style="display: none;">
-            <h3>🎉 Hoàn Thành Nhiệm Vụ!</h3>
+            <h3>🎉 Vượt Link Thành Công!</h3>
             <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy hiển thị sau: <span id="countdown">30</span> giây</div>
-            <div class="key-box" id="key-text">Đang tạo mã kích hoạt...</div>
+            <div class="key-box" id="key-text">Đang xác thực và tạo mã...</div>
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
@@ -94,15 +94,33 @@
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
-            Thiếu thông tin phân loại nhiệm vụ (provider). Vui lòng mở lại qua link nhiệm vụ hợp lệ!
+            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link mới từ App!
         </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
+        let requestToken = (urlParams.get('token') || '').trim();
 
-        if (!rawProvider) {
+        let referrer = document.referrer.toLowerCase();
+        
+        // Bắt buộc phải có Referrer chuyển hướng từ các trang hợp lệ HOẶC có Token hợp lệ
+        let isLegit = false;
+        
+        // Danh sách nguồn chuyển hướng được phép
+        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly'];
+        
+        if (rawProvider) {
+            let hasValidReferrer = validSources.some(src => referrer.includes(src));
+            
+            // Nếu dùng trình duyệt di động ẩn referrer thì bắt buộc kiểm tra xem có token/lượt truy cập mới không
+            if (hasValidReferrer || (referrer === "" && performance.navigation.type !== 1)) {
+                isLegit = true;
+            }
+        }
+
+        if (!rawProvider || !isLegit) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
@@ -116,21 +134,21 @@
             let currentKey = "";
 
             async function initUniqueKey() {
-                // Cố định key theo phiên truy cập bằng sessionStorage
-                let storageKey = `active_key_${rawProvider}`;
+                let storageKey = `session_key_${rawProvider}`;
                 let savedKey = sessionStorage.getItem(storageKey);
 
+                // Nếu người dùng F5 trang -> giữ nguyên key đã cấp trong phiên làm việc này
                 if (savedKey) {
                     currentKey = savedKey;
                     document.getElementById("key-text").innerText = currentKey;
                     return;
                 }
 
+                // Sinh mã Key ngẫu nhiên
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
-                // Key được định dạng riêng biệt theo nhiệm vụ: NHIEMVU-HEX-NGAY
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 
                 sessionStorage.setItem(storageKey, currentKey);
@@ -148,7 +166,7 @@
                 } catch(e) {}
             }
 
-            setTimeout(initUniqueKey, 300);
+            initUniqueKey();
 
             let timeLeft = 30;
             const timerInterval = setInterval(function() {
@@ -160,7 +178,7 @@
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
                 navigator.clipboard.writeText(currentKey);
-                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud dán vào ô xác nhận.");
+                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
             };
 
             function hideKeyDisplay() {
