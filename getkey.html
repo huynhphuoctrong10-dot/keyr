@@ -81,31 +81,44 @@
 <body>
 
     <div class="card" id="main-card">
-        <div class="provider-title" id="provider-badge">Đang khởi tạo mã...</div>
+        <div class="provider-title" id="provider-badge">Kiểm tra bảo mật...</div>
         
         <div id="valid-content" style="display: none;">
             <h3>🎉 Vượt Link Thành Công!</h3>
-            <div class="timer-box" id="timer-display">⏱️ Key bảo mật hiển thị trong: <span id="countdown">30</span> giây</div>
-            <div class="key-box" id="key-text">Đang tạo mã độc quyền...</div>
+            <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy hiển thị sau: <span id="countdown">30</span> giây</div>
+            <div class="key-box" id="key-text">Đang xác thực và tạo mã...</div>
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Đã sao chép mã hoặc hết thời gian hiệu lực!<br>Vui lòng quay lại App để thực hiện lượt vượt link tiếp theo.</p>
+        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key này đã được sao chép hoặc đã hết thời gian hiển thị!<br>Vui lòng quay lại App thực hiện lại lượt vượt link mới để lấy mã tiếp theo.</p>
         
         <div class="error-box" id="error-box">
-            🚨 <b>Không tìm thấy nhà cung cấp!</b><br>
-            Vui lòng thao tác lấy link trực tiếp từ ứng dụng chính.
+            🚨 <b>Truy cập bị từ chối!</b><br>
+            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link từ App để nhận mã!
         </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        let rawProvider = (urlParams.get('provider') || 'NHIEMVU').toLowerCase().trim();
+        let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
+        let referrer = document.referrer.toLowerCase();
         
-        // Mở khóa hoàn toàn điều kiện kiểm tra để không bị lỗi màn hình đỏ
-        let isLegit = true; 
+        let isLegit = false;
+        // Mở rộng danh sách nguồn hợp lệ bao gồm các bên rút gọn phổ biến và chính github.io của bạn
+        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io', 'uplcm'];
+        
+        if (rawProvider) {
+            // Nếu có referrer khớp các nguồn HOẶC nếu người dùng đi từ hệ thống web sang hợp lệ
+            let hasValidReferrer = validSources.some(src => referrer.includes(src));
+            
+            // Cho phép đi qua nếu có referrer hợp lệ HOẶC nếu trình duyệt không gửi referrer nhưng có đính kèm đúng tham số provider từ hệ thống
+            if (hasValidReferrer || referrer === "" || referrer.includes("huynhphuoctrong10")) {
+                isLegit = true;
+            }
+        }
 
-        if (!rawProvider || !isLegit) {
+        // Bổ sung lớp kiểm tra chống dán trực tiếp: Nếu không có tham số ?provider= trên URL -> Chặn luôn lập tức
+        if (!urlParams.has('provider') || !rawProvider || !isLegit) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
@@ -152,7 +165,7 @@
                 if (!currentKey) return;
                 
                 navigator.clipboard.writeText(currentKey).then(() => {
-                    alert("Đã sao chép Key bảo mật thành công! Hãy quay lại app TMGCloud và dán vào ô xác nhận.");
+                    alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
                 }).catch(err => {
                     let tempInput = document.createElement("input");
                     tempInput.value = currentKey;
