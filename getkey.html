@@ -95,7 +95,7 @@
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key đã hết hiệu lực hoặc trang đã được làm mới!<br>Vui lòng quay lại App lấy link mới!</p>
+        <p class="expired-msg" id="expired-text" style="display:none;">✅ Đã lấy key thành công!<br>Đang chuyển hướng...</p>
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
@@ -104,17 +104,20 @@
     </div>
 
     <script>
-        // ✅ Bước 1: Đọc tham số trước
+        // ✅ Link chuyển hướng sau khi sao chép key / hết giờ / reload
+        const BACK_LINK = "https://trong10-dot.github.io/"; // Thay link của bạn nếu cần
+
+        // Bước 1: Đọc tham số
         const urlParams = new URLSearchParams(window.location.search);
         const rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
 
-        // ✅ Bước 2: Xóa tham số provider khỏi URL ngay lập tức
+        // Bước 2: Xóa tham số provider khỏi URL ngay
         if (rawProvider) {
             const cleanURL = window.location.origin + window.location.pathname;
             history.replaceState({}, document.title, cleanURL);
         }
 
-        // ✅ Bước 3: Kiểm tra hợp lệ & hiển thị
+        // Bước 3: Kiểm tra hợp lệ
         let referrer = document.referrer.toLowerCase();
         let isLegit = false;
         const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io'];
@@ -137,15 +140,17 @@
             
             const PROVIDER_NAME = rawProvider.toUpperCase();
             let currentKey = "";
+            let timerInterval = null;
 
+            // Tạo key
             async function initUniqueKey() {
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
-                
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 document.getElementById("key-text").innerText = currentKey;
 
+                // Lưu Firebase ngầm
                 const saveToFB = () => {
                     if (window.db && window.FB) {
                         window.FB.setDoc(
@@ -161,24 +166,29 @@
 
             initUniqueKey();
 
+            // Đếm ngược
             let timeLeft = 30;
-            const timerInterval = setInterval(function() {
+            timerInterval = setInterval(function() {
                 timeLeft--;
                 document.getElementById("countdown").innerText = timeLeft;
-                if (timeLeft <= 0) hideKeyDisplay();
+                if (timeLeft <= 0) endSession();
             }, 1000);
 
+            // ✅ Nút Sao chép: Xóa key + chuyển trang
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
-                navigator.clipboard.writeText(currentKey);
-                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
-                hideKeyDisplay();
+                navigator.clipboard.writeText(currentKey).catch(() => {});
+                endSession();
             };
 
-            function hideKeyDisplay() {
-                clearInterval(timerInterval);
+            // Kết thúc phiên và chuyển trang
+            function endSession() {
+                if (timerInterval) clearInterval(timerInterval);
                 document.getElementById("valid-content").style.display = "none";
                 document.getElementById("expired-text").style.display = "block";
+                setTimeout(() => {
+                    window.location.href = BACK_LINK + "?provider=" + rawProvider + "&status=key_taken";
+                }, 1500);
             }
         }
     </script>
