@@ -104,32 +104,21 @@
     </div>
 
     <script>
-        // ✅ Link chuyển hướng sau khi sao chép key / hết giờ / reload
-        const BACK_LINK = "https://trong10-dot.github.io/"; // Thay link của bạn nếu cần
+        // Link chuyển hướng sau khi sao chép key / hết giờ
+        const BACK_LINK = "https://trong10-dot.github.io/";
 
-        // Bước 1: Đọc tham số
+        // Bước 1: Đọc tham số TRƯỚC khi xóa
         const urlParams = new URLSearchParams(window.location.search);
         const rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
 
-        // Bước 2: Xóa tham số provider khỏi URL ngay
+        // Bước 2: Xóa tham số provider khỏi URL ngay lập tức
         if (rawProvider) {
             const cleanURL = window.location.origin + window.location.pathname;
             history.replaceState({}, document.title, cleanURL);
         }
 
-        // Bước 3: Kiểm tra hợp lệ
-        let referrer = document.referrer.toLowerCase();
-        let isLegit = false;
-        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io'];
-        
-        if (rawProvider) {
-            let hasValidReferrer = validSources.some(src => referrer.includes(src));
-            if (hasValidReferrer || (referrer === "" && performance.navigation.type !== 1)) {
-                isLegit = true;
-            }
-        }
-
-        if (!rawProvider || !isLegit) {
+        // ✅ Bỏ kiểm tra referrer! Chỉ cần có provider= là hợp lệ
+        if (!rawProvider) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
@@ -174,14 +163,13 @@
                 if (timeLeft <= 0) endSession();
             }, 1000);
 
-            // ✅ Nút Sao chép: Xóa key + chuyển trang
+            // Sao chép key & chuyển trang
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
                 navigator.clipboard.writeText(currentKey).catch(() => {});
                 endSession();
             };
 
-            // Kết thúc phiên và chuyển trang
             function endSession() {
                 if (timerInterval) clearInterval(timerInterval);
                 document.getElementById("valid-content").style.display = "none";
