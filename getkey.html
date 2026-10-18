@@ -102,32 +102,23 @@
         const urlParams = new URLSearchParams(window.location.search);
         let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
 
-        // Cấu hình quy tắc các nhà mạng (Hỗ trợ danh sách nhiều domain)
         const providerRules = {
-            'vuotnhanh': { name: 'vuotnhanh', validDomain: ['vuotnhanh.com', 'vuotnhanh.net'] },
-            'link4m': { name: 'link4m', validDomain: ['link4m.com', 'link4m.co', 'link4m'] },
-            'link4sub': { name: 'link4sub', validDomain: ['link4sub.com', 'link4sub.net', 'link4sub.org'] },
-            'link4sub_easy': { name: 'link4sub (Dễ)', validDomain: ['link4sub.com', 'link4sub.net', 'link4sub.org'] },
-            'link4sub_hard': { name: 'link4sub (Khó)', validDomain: ['link4sub.com', 'link4sub.net', 'link4sub.org'] },
-            'layma': { name: 'layma', validDomain: ['layma.net', 'layma.com'] },
-            'yeumoney': { name: 'yeumoney', validDomain: ['yeumoney.com'] }
+            'vuotnhanh': { name: 'vuotnhanh', validDomain: 'vuotnhanh.com' },
+            'link4m': { name: 'link4m', validDomain: 'link4m' },
+            'link4sub': { name: 'link4sub', validDomain: 'link4sub.com' },
+            'layma': { name: 'layma', validDomain: 'layma.net' },
+            'yeumoney': { name: 'yeumoney', validDomain: 'yeumoney.com' }
         };
 
         const rule = providerRules[rawProvider];
         let referrer = document.referrer.toLowerCase();
 
         let isLegit = false;
-        
-        // Kiểm tra tính hợp lệ: Nếu tìm thấy domain trong Referrer HOẶC Referrer rỗng (trình duyệt di động tự chặn)
-        if (rule) {
-            if (referrer === "") {
-                isLegit = true;
-            } else {
-                isLegit = rule.validDomain.some(domain => referrer.includes(domain));
-            }
+        if (rule && (referrer.includes(rule.validDomain) || referrer === "")) {
+            isLegit = true;
         }
 
-        if (!rule || !isLegit) {
+        if (!rule) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
@@ -141,7 +132,7 @@
 
             async function initUniqueKey() {
                 // Cố định key bằng sessionStorage để khi F5 trang không bị sinh key mới
-                let storageKey = `active_key_${rawProvider}`;
+                let storageKey = `active_key_${PROVIDER_NAME}`;
                 let savedKey = sessionStorage.getItem(storageKey);
 
                 if (savedKey) {
@@ -154,10 +145,7 @@
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 
                 let randomHex = Math.random().toString(36).substring(2, 10).toUpperCase();
-                
-                // Tiền tố Provider dạng viết hoa chuẩn
-                let keyPrefix = rawProvider.toUpperCase();
-                currentKey = `${keyPrefix}-${randomHex}-${dateStr}`;
+                currentKey = `${PROVIDER_NAME.toUpperCase()}-${randomHex}-${dateStr}`;
                 
                 sessionStorage.setItem(storageKey, currentKey);
                 document.getElementById("key-text").innerText = currentKey;
@@ -165,7 +153,7 @@
                 try {
                     if (window.db && window.FB) {
                         let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                        await window.FB.setDoc(keyRef, { provider: rawProvider, used: false, time: new Date().toLocaleString() });
+                        await window.FB.setDoc(keyRef, { provider: PROVIDER_NAME, used: false, time: new Date().toLocaleString() });
                     }
                 } catch(e) {}
             }
