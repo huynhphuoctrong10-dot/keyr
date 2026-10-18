@@ -49,11 +49,14 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
         }
-        .expired-msg, .error-box { 
+        .msg-box { 
             color: #dc2626; font-weight: 600; display: none; 
-            margin-top: 15px; line-height: 1.6; font-size: 14px;
-            background: #fef2f2; padding: 15px; border-radius: 10px;
+            margin-top: 15px; line-height: 1.6; font-size: 15px;
+            background: #fef2f2; padding: 20px; border-radius: 10px;
             border: 1px solid #fecaca;
+        }
+        .success-box {
+            color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; display: none;
         }
     </style>
 
@@ -84,16 +87,24 @@
         
         <div id="valid-content" style="display: none;">
             <h3>🎉 Vượt Link Thành Công!</h3>
-            <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy hiển thị sau: <span id="countdown">30</span> giây</div>
-            <div class="key-box" id="key-text">Đang xác thực và tạo mã...</div>
-            <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
+            <div class="timer-box" id="timer-display">⏱️ Key sẽ hết sau: <span id="countdown">30</span> giây</div>
+            <div class="key-box" id="key-text">Đang tạo mã...</div>
+            <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key</button>
         </div>
 
-        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Đã làm mới trang — Key đã hết hiệu lực!<br>Vui lòng quay lại App thực hiện lại lượt vượt link mới để lấy mã tiếp theo.</p>
-        
-        <div class="error-box" id="error-box">
-            🚨 <b>Truy cập bị từ chối!</b><br>
-            Thiếu tham số provider trong đường dẫn!
+        <div class="msg-box" id="reload-msg">
+            🔄 <b>Trang đã được làm mới</b><br>
+            Key đã bị vô hiệu hóa. Vui lòng quay lại App và lấy link mới!
+        </div>
+
+        <div class="msg-box success-box" id="copied-msg">
+            ✅ <b>Đã lấy key thành công!</b><br>
+            Đang chuyển hướng...
+        </div>
+
+        <div class="msg-box" id="error-box">
+            🚨 <b>Truy cập không hợp lệ!</b><br>
+            Thiếu tham số yêu cầu. Vui lòng sử dụng link từ App!
         </div>
     </div>
 
@@ -103,76 +114,81 @@
         let currentKey = "";
         let timerInterval = null;
 
-        // ✅ Luôn xóa dữ liệu cũ khi trang tải/reload
-        sessionStorage.clear();
+        // Link chuyển hướng sau khi hết/đã lấy key
+        const BACK_LINK = "https://trong10-dot.github.io/"; // Thay link của bạn vào đây
 
         if (!rawProvider) {
-            document.getElementById("valid-content").style.display = "none";
-            document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
-        } else {
-            // ✅ Kiểm tra xem đây có phải lần đầu mở link không
-            const isFirstLoad = sessionStorage.getItem('first_load_done');
-            
-            if (isFirstLoad) {
-                // 🔄 Reload trang → Ẩn key ngay
-                document.getElementById("valid-content").style.display = "none";
-                document.getElementById("provider-badge").style.display = "none";
-                document.getElementById("expired-text").style.display = "block";
-            } else {
-                // 🆕 Lần đầu mở link → Hiển thị key
-                sessionStorage.setItem('first_load_done', 'true');
-                
-                document.getElementById("error-box").style.display = "none";
-                document.getElementById("valid-content").style.display = "block";
-                
-                const PROVIDER_NAME = rawProvider.toUpperCase();
-                document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + PROVIDER_NAME;
-                
-                // Tạo key mới
-                let d = new Date();
-                let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-                let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
-                currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
-                document.getElementById("key-text").innerText = currentKey;
+            return;
+        }
 
-                // Lưu lên Firebase
-                (async () => {
-                    try {
-                        if (window.db && window.FB) {
-                            let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                            await window.FB.setDoc(keyRef, { 
-                                provider: rawProvider, 
-                                used: false, 
-                                time: new Date().toLocaleString() 
-                            });
-                        }
-                    } catch(e) {}
-                })();
+        const sessionKey = `session_done_${rawProvider}`;
 
-                // Đếm ngược 30 giây
-                let timeLeft = 30;
-                document.getElementById("countdown").innerText = timeLeft;
-                
-                timerInterval = setInterval(function() {
-                    timeLeft--;
-                    document.getElementById("countdown").innerText = timeLeft;
-                    if (timeLeft <= 0) hideKeyDisplay();
-                }, 1000);
+        // ✅ Đã từng load trước đó → Reload → Hiện thông báo & chuyển trang
+        if (sessionStorage.getItem(sessionKey)) {
+            document.getElementById("reload-msg").style.display = "block";
+            setTimeout(() => {
+                window.location.href = BACK_LINK + "?provider=" + rawProvider + "&status=reloaded";
+            }, 2500);
+            return;
+        }
 
-                window.copyKeyOnly = function() {
-                    if (!currentKey) return;
-                    navigator.clipboard.writeText(currentKey);
-                    alert("✅ Đã sao chép Key bảo mật thành công!\nHãy quay lại App và dán vào ô xác nhận.");
-                    hideKeyDisplay();
-                };
+        // ✅ Lần đầu mở link
+        sessionStorage.setItem(sessionKey, 'active');
+        document.getElementById("valid-content").style.display = "block";
+        document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + rawProvider.toUpperCase();
 
-                function hideKeyDisplay() {
-                    clearInterval(timerInterval);
-                    document.getElementById("valid-content").style.display = "none";
-                    document.getElementById("expired-text").style.display = "block";
-                    sessionStorage.clear();
+        // Tạo key
+        const d = new Date();
+        const dateStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+        const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+        currentKey = `${rawProvider.toUpperCase()}-${randomHex}-${dateStr}`;
+        document.getElementById("key-text").innerText = currentKey;
+
+        // Lưu Firebase
+        (async () => {
+            try {
+                if (window.db && window.FB) {
+                    const keyRef = window.FB.doc(window.db, "used_keys", currentKey);
+                    await window.FB.setDoc(keyRef, {
+                        provider: rawProvider,
+                        used: false,
+                        time: d.toLocaleString()
+                    });
                 }
+            } catch(e) {}
+        })();
+
+        // Đếm ngược
+        let timeLeft = 30;
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById("countdown").innerText = timeLeft;
+            if (timeLeft <= 0) endSession("timeout");
+        }, 1000);
+
+        window.copyKeyOnly = function() {
+            if (!currentKey) return;
+            navigator.clipboard.writeText(currentKey);
+            endSession("copied");
+        };
+
+        function endSession(reason) {
+            clearInterval(timerInterval);
+            sessionStorage.removeItem(sessionKey);
+            document.getElementById("valid-content").style.display = "none";
+            
+            if (reason === "copied") {
+                document.getElementById("copied-msg").style.display = "block";
+                setTimeout(() => {
+                    window.location.href = BACK_LINK + "?provider=" + rawProvider + "&status=key_taken";
+                }, 2000);
+            } else {
+                document.getElementById("reload-msg").innerHTML = "⏱️ <b>Hết thời gian</b><br>Vui lòng lấy link mới từ App!";
+                document.getElementById("reload-msg").style.display = "block";
+                setTimeout(() => {
+                    window.location.href = BACK_LINK + "?provider=" + rawProvider + "&status=timeout";
+                }, 2500);
             }
         }
     </script>
