@@ -100,8 +100,9 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
-        
-        // ✅ Bỏ hết kiểm tra referrer, chỉ kiểm tra có provider= trong URL là đủ
+        let currentKey = "";
+        let timerInterval = null;
+
         if (!rawProvider) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
@@ -113,15 +114,32 @@
             const PROVIDER_NAME = rawProvider.toUpperCase();
             document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + PROVIDER_NAME;
             
-            let currentKey = "";
+            // ✅ Kiểm tra xem đã có key cho provider này chưa
+            const storageKey = `secure_key_${rawProvider}`;
+            const savedKey = sessionStorage.getItem(storageKey);
+            const savedTime = sessionStorage.getItem(`${storageKey}_time`);
+            const now = Date.now();
 
-            async function initUniqueKey() {
+            if (savedKey && savedTime && (now - parseInt(savedTime)) < 30 * 60 * 1000) {
+                // ✅ Có key cũ và chưa hết hạn (30 phút) → dùng lại
+                currentKey = savedKey;
+                document.getElementById("key-text").innerText = currentKey;
+            } else {
+                // 🔑 Không có hoặc hết hạn → tạo key mới
+                createAndSaveKey();
+            }
+
+            async function createAndSaveKey() {
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 document.getElementById("key-text").innerText = currentKey;
+                
+                // Lưu vào sessionStorage
+                sessionStorage.setItem(storageKey, currentKey);
+                sessionStorage.setItem(`${storageKey}_time`, now.toString());
 
                 try {
                     if (window.db && window.FB) {
@@ -135,10 +153,11 @@
                 } catch(e) {}
             }
 
-            initUniqueKey();
-
+            // ⏱️ Đếm ngược 30 giây
             let timeLeft = 30;
-            const timerInterval = setInterval(function() {
+            document.getElementById("countdown").innerText = timeLeft;
+            
+            timerInterval = setInterval(function() {
                 timeLeft--;
                 document.getElementById("countdown").innerText = timeLeft;
                 if (timeLeft <= 0) hideKeyDisplay();
@@ -155,6 +174,9 @@
                 clearInterval(timerInterval);
                 document.getElementById("valid-content").style.display = "none";
                 document.getElementById("expired-text").style.display = "block";
+                // Xóa key khi hết thời gian hoặc sao chép
+                sessionStorage.removeItem(storageKey);
+                sessionStorage.removeItem(`${storageKey}_time`);
             }
         }
     </script>
