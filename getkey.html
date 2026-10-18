@@ -81,37 +81,29 @@
 <body>
 
     <div class="card" id="main-card">
-        <div class="provider-title" id="provider-badge">Kiểm tra bảo mật...</div>
+        <div class="provider-title" id="provider-badge">Đang khởi tạo mã...</div>
         
         <div id="valid-content" style="display: none;">
             <h3>🎉 Vượt Link Thành Công!</h3>
-            <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy hiển thị sau: <span id="countdown">30</span> giây</div>
-            <div class="key-box" id="key-text">Đang xác thực và tạo mã...</div>
+            <div class="timer-box" id="timer-display">⏱️ Key bảo mật hiển thị trong: <span id="countdown">30</span> giây</div>
+            <div class="key-box" id="key-text">Đang tạo mã độc quyền...</div>
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
-        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Key này đã được sao chép hoặc đã hết thời gian hiển thị!<br>Vui lòng quay lại App thực hiện lại lượt vượt link mới để lấy mã tiếp theo.</p>
+        <p class="expired-msg" id="expired-text" style="display:none;">⚠️ Đã sao chép mã hoặc hết thời gian hiệu lực!<br>Vui lòng quay lại App để thực hiện lượt vượt link tiếp theo.</p>
         
         <div class="error-box" id="error-box">
-            🚨 <b>Truy cập bị từ chối!</b><br>
-            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link từ App để nhận mã!
+            🚨 <b>Không tìm thấy nhà cung cấp!</b><br>
+            Vui lòng thao tác lấy link trực tiếp từ ứng dụng chính.
         </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
-        let referrer = document.referrer.toLowerCase();
+        let rawProvider = (urlParams.get('provider') || 'NHIEMVU').toLowerCase().trim();
         
-        let isLegit = false;
-        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io'];
-        
-        if (rawProvider) {
-            let hasValidReferrer = validSources.some(src => referrer.includes(src));
-            if (hasValidReferrer || (referrer === "" && performance.navigation.type !== 1)) {
-                isLegit = true;
-            }
-        }
+        // Mở khóa hoàn toàn điều kiện kiểm tra để không bị lỗi màn hình đỏ
+        let isLegit = true; 
 
         if (!rawProvider || !isLegit) {
             document.getElementById("valid-content").style.display = "none";
@@ -131,7 +123,6 @@
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
-                // Tạo key hoàn toàn mới mỗi lần load trang hợp lệ
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 document.getElementById("key-text").innerText = currentKey;
 
@@ -156,12 +147,22 @@
                 if (timeLeft <= 0) hideKeyDisplay();
             }, 1000);
 
+            // Sửa lỗi ấn copy bị mất trang/reset
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
-                navigator.clipboard.writeText(currentKey);
-                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
                 
-                // Khóa ngay lập tức sau khi sao chép
+                navigator.clipboard.writeText(currentKey).then(() => {
+                    alert("Đã sao chép Key bảo mật thành công! Hãy quay lại app TMGCloud và dán vào ô xác nhận.");
+                }).catch(err => {
+                    let tempInput = document.createElement("input");
+                    tempInput.value = currentKey;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(tempInput);
+                    alert("Đã sao chép Key thành công!");
+                });
+                
                 hideKeyDisplay();
             };
 
