@@ -55,12 +55,8 @@
             background: #fef2f2; padding: 15px; border-radius: 10px;
             border: 1px solid #fecaca;
         }
-        .debug-note {
-            font-size: 11px; color: #888; margin-top: 15px; display: none;
-        }
     </style>
 
-    <!-- FIREBASE SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
@@ -97,39 +93,16 @@
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
-            Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link từ App để nhận mã!
+            Thiếu tham số provider trong đường dẫn!
         </div>
-
-        <div class="debug-note" id="debug-info"></div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
-        const token = (urlParams.get('token') || '').trim();
-        const referrer = document.referrer.toLowerCase();
         
-        let isLegit = false;
-        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io', 'localhost'];
-        
-        // ✅ Logic đã cải thiện: Ưu tiên tham số provider + token hợp lệ
-        if (rawProvider) {
-            // Trường hợp 1: Có token hợp lệ trong URL → cho phép
-            if (token && token.length >= 8) {
-                isLegit = true;
-            }
-            // Trường hợp 2: Có referrer hợp lệ
-            else if (validSources.some(src => referrer.includes(src))) {
-                isLegit = true;
-            }
-            // Trường hợp 3: Mở trực tiếp nhưng có provider + token (dành cho App di động)
-            else if (referrer === "" && token.length >= 8) {
-                isLegit = true;
-            }
-        }
-
-        // Hiển thị lỗi nếu không hợp lệ
-        if (!rawProvider || !isLegit) {
+        // ✅ Bỏ hết kiểm tra referrer, chỉ kiểm tra có provider= trong URL là đủ
+        if (!rawProvider) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
