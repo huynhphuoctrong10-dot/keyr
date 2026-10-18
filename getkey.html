@@ -55,6 +55,9 @@
             background: #fef2f2; padding: 15px; border-radius: 10px;
             border: 1px solid #fecaca;
         }
+        .debug-note {
+            font-size: 11px; color: #888; margin-top: 15px; display: none;
+        }
     </style>
 
     <!-- FIREBASE SDK -->
@@ -96,32 +99,36 @@
             🚨 <b>Truy cập bị từ chối!</b><br>
             Phát hiện hành vi copy/dán lại đường dẫn trực tiếp. Bạn bắt buộc phải hoàn thành lượt vượt link từ App để nhận mã!
         </div>
+
+        <div class="debug-note" id="debug-info"></div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
-        let referrer = document.referrer.toLowerCase();
+        const rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
+        const token = (urlParams.get('token') || '').trim();
+        const referrer = document.referrer.toLowerCase();
         
         let isLegit = false;
-        // Thêm đầy đủ các domain rút gọn thường dùng vào danh sách nguồn hợp lệ
-        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io', 'uplcm'];
+        const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io', 'localhost'];
         
+        // ✅ Logic đã cải thiện: Ưu tiên tham số provider + token hợp lệ
         if (rawProvider) {
-            let hasValidReferrer = validSources.some(src => referrer.includes(src));
-            
-            // Sửa lỗi: Chấp nhận khi có nguồn hợp lệ, HOẶC khi referrer trống (do mobile ẩn), 
-            // HOẶC nếu người dùng gõ trực tiếp lên thanh tìm kiếm (bị phát hiện qua performance.navigation.type === 1 khi không có tham số / referrer trống)
-            if (hasValidReferrer || referrer === "") {
+            // Trường hợp 1: Có token hợp lệ trong URL → cho phép
+            if (token && token.length >= 8) {
+                isLegit = true;
+            }
+            // Trường hợp 2: Có referrer hợp lệ
+            else if (validSources.some(src => referrer.includes(src))) {
+                isLegit = true;
+            }
+            // Trường hợp 3: Mở trực tiếp nhưng có provider + token (dành cho App di động)
+            else if (referrer === "" && token.length >= 8) {
                 isLegit = true;
             }
         }
 
-        // Chặn nếu đích thực là dán trực tiếp / gõ tay lên thanh tìm kiếm (load lại trang trắng trơn không có referrer và không đi qua chuyển hướng)
-        if (referrer === "" && performance.navigation.type === 1 && !urlParams.has('provider')) {
-            isLegit = false;
-        }
-
+        // Hiển thị lỗi nếu không hợp lệ
         if (!rawProvider || !isLegit) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
@@ -140,7 +147,6 @@
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                 let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
-                // Tạo key hoàn toàn mới mỗi lần load trang hợp lệ
                 currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 document.getElementById("key-text").innerText = currentKey;
 
@@ -165,22 +171,10 @@
                 if (timeLeft <= 0) hideKeyDisplay();
             }, 1000);
 
-            // Sửa lỗi bấm nút sao chép làm mất/reset trang web
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
-                
-                navigator.clipboard.writeText(currentKey).then(() => {
-                    alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud và dán vào ô xác nhận.");
-                }).catch(err => {
-                    let tempInput = document.createElement("input");
-                    tempInput.value = currentKey;
-                    document.body.appendChild(tempInput);
-                    tempInput.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(tempInput);
-                    alert("Đã sao chép Key thành công!");
-                });
-                
+                navigator.clipboard.writeText(currentKey);
+                alert("✅ Đã sao chép Key bảo mật thành công!\nHãy quay lại App và dán vào ô xác nhận.");
                 hideKeyDisplay();
             };
 
