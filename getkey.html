@@ -104,21 +104,21 @@
         let referrer = document.referrer.toLowerCase();
         
         let isLegit = false;
-        // Mở rộng danh sách nguồn hợp lệ bao gồm các bên rút gọn phổ biến và chính github.io của bạn
+        // Bổ sung đầy đủ tên các trang rút gọn phổ biến vào danh sách nguồn hợp lệ
         const validSources = ['link4sub', 'link4m', 'vuotnhanh', 'layma', 'yeumoney', 'sub2s', 'bit.ly', 'github.io', 'uplcm'];
         
         if (rawProvider) {
-            // Nếu có referrer khớp các nguồn HOẶC nếu người dùng đi từ hệ thống web sang hợp lệ
             let hasValidReferrer = validSources.some(src => referrer.includes(src));
             
-            // Cho phép đi qua nếu có referrer hợp lệ HOẶC nếu trình duyệt không gửi referrer nhưng có đính kèm đúng tham số provider từ hệ thống
+            // Cho phép đi qua nếu khớp nguồn rút gọn, hoặc nếu referrer trống (trên mobile hay bị ẩn), 
+// nhưng bắt buộc phải có thông số ?provider= hợp lệ để loại trừ trường hợp dán thẳng link trắng trơn lên thanh tìm kiếm
             if (hasValidReferrer || referrer === "" || referrer.includes("huynhphuoctrong10")) {
                 isLegit = true;
             }
         }
 
-        // Bổ sung lớp kiểm tra chống dán trực tiếp: Nếu không có tham số ?provider= trên URL -> Chặn luôn lập tức
-        if (!urlParams.has('provider') || !rawProvider || !isLegit) {
+        // Nếu không có provider hoặc không hợp lệ -> Chặn và báo lỗi đỏ
+        if (!rawProvider || !isLegit) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
@@ -160,7 +160,7 @@
                 if (timeLeft <= 0) hideKeyDisplay();
             }, 1000);
 
-            // Sửa lỗi ấn copy bị mất trang/reset
+            // Sửa lỗi ấn copy làm mất/reset trang web
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
                 
