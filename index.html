@@ -189,7 +189,7 @@
             <div class="wallet-box">Ví Tiền: <span id="balance-display">0</span> VNĐ</div>
             <p style="font-size: 13px; color: #64748b; text-align: center; margin-bottom: 15px;">⚡ Nhiệm vụ và lượt vượt link sẽ tự động reset mới mỗi ngày!</p>
             
-            <div id="steps-container"></div>
+            <div id="steps-container">Đang tải danh sách nhiệm vụ mới nhất từ hệ thống...</div>
 
             <!-- ĐIỀU KHOẢN VÀ THẮC MẮC HỖ TRỢ -->
             <div class="terms-box">
@@ -242,7 +242,7 @@
 
                 <div class="field-group">
                     <label id="account-label">Số tài khoản / Số ví:</label>
-                    <input type="text" id="pay-account" placeholder="Nhập gmail ví dụ :trong@gmail.com...">
+                    <input type="text" id="pay-account" placeholder="Nhập số tài khoản hoặc gmail...">
                 </div>
 
                 <div class="field-group">
@@ -296,36 +296,55 @@
     </script>
 
     <script>
-        // CÁC ĐƯỜNG LINK NHIỆM VỤ MẶC ĐỊNH CHUẨN XÁC
-        let defaultSteps = [
-            { step: 1, name: 'Nhiệm vụ 1: Link4M', provider: 'link4m', url: 'https://link4m.net/pnTyli1', reward: 200, maxTimes: 2 },
-            { step: 2, name: 'Nhiệm vụ 2: Vượt Nhanh', provider: 'vuotnhanh', url: 'https://vuotnhanh.com/N32Z', reward: 50, maxTimes: 1 },
-            { step: 3, name: 'Nhiệm vụ 3: YeuMoney', provider: 'yeumoney', url: 'https://yeumoney.com/sqhVoMXVRXGb', reward: 100, maxTimes: 2 },
-            { step: 4, name: 'Nhiệm vụ 4: LayMa', provider: 'layma', url: 'https://layma.net/w69Mnu7Da', reward: 100, maxTimes: 2 },
-            { step: 5, name: 'Nhiệm vụ 5: Link4Sub', provider: 'link4sub', url: 'https://link4sub.com/DL3iISA1Ls', reward: 100, maxTimes: 2 }
-        ];
-
+        let defaultSteps = [];
         let currentUser = localStorage.getItem('current_logged_user') || null;
         let userData = { balance: 0, counts: {}, lastDate: '' };
         let isProcessing = false;
 
         window.addEventListener('DOMContentLoaded', async () => {
             checkAndShowNoticeModal();
-            await loadDynamicRates();
-
+            await loadTasksFromFirebase();
             if (currentUser) {
                 await loadUserDataFromCloud(currentUser);
                 showMainScreen();
             }
         });
 
+        async function loadTasksFromFirebase() {
+            try {
+                if (window.FB && window.db) {
+                    let querySnapshot = await window.FB.getDocs(window.FB.collection(window.db, "tasks"));
+                    let firebaseTasks = [];
+                    let index = 1;
+
+                    querySnapshot.forEach((docSnap) => {
+                        let data = docSnap.data();
+                        let hasShortLink = data.shortLink && data.shortLink.trim().startsWith("http");
+
+                        firebaseTasks.push({
+                            step: index++,
+                            name: data.title || `Nhiệm vụ ${index}`,
+                            provider: data.provider || 'default',
+                            url: hasShortLink ? data.shortLink.trim() : '#',
+                            isReady: hasShortLink,
+                            reward: data.rewardCoins || 100,
+                            maxTimes: data.maxTimes || 2
+                        });
+                    });
+
+                    if (firebaseTasks.length > 0) {
+                        defaultSteps = firebaseTasks;
+                    }
+                }
+            } catch(e) {
+                console.log("Không thể tải danh sách nhiệm vụ.");
+            }
+        }
+
         async function checkAndShowNoticeModal() {
             let hideUntil = localStorage.getItem('hide_notice_until');
             let now = new Date().getTime();
-
-            if (hideUntil && now < parseInt(hideUntil)) {
-                return;
-            }
+            if (hideUntil && now < parseInt(hideUntil)) return;
 
             try {
                 if (window.FB && window.db) {
@@ -354,32 +373,6 @@
             }
             document.getElementById("notice-modal").style.display = "none";
         };
-
-        // HÀM TẢI RATE CÓ TÍCH HỢP FALLBACK AN TOÀN ĐỂ KHÔNG BAO GIỜ MẤT LINK
-        async function loadDynamicRates() {
-            try {
-                if (window.FB && window.db) {
-                    let ref = window.FB.doc(window.db, "settings", "rates");
-                    let snap = await window.FB.getDoc(ref);
-                    if (snap.exists()) {
-                        let firebaseRates = snap.data().list;
-                        if (firebaseRates && firebaseRates.length > 0) {
-                            defaultSteps = firebaseRates.map((r, index) => {
-                                let def = defaultSteps[index] || defaultSteps[0];
-                                return {
-                                    step: r.step || def.step,
-                                    name: r.name ? r.name.replace(/Bước/g, 'Nhiệm vụ') : def.name,
-                                    provider: r.provider || def.provider,
-                                    url: r.url || def.url,
-                                    reward: r.reward !== undefined ? r.reward : def.reward,
-                                    maxTimes: r.maxTimes !== undefined ? r.maxTimes : def.maxTimes
-                                };
-                            });
-                        }
-                    }
-                }
-            } catch(e) {}
-        }
 
         window.switchAuthTab = function(tabName) {
             document.querySelectorAll('.auth-tab').forEach(el => el.classList.remove('active'));
@@ -481,18 +474,30 @@
             let container = document.getElementById('steps-container');
             container.innerHTML = '';
             
+            if (defaultSteps.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:#64748b;">Chưa có nhiệm vụ nào được cấu hình trên hệ thống!</p>`;
+                return;
+            }
+
             defaultSteps.forEach(s => {
                 let doneCount = userData.counts[s.step] || 0;
                 let isMax = doneCount >= s.maxTimes;
                 
+                let buttonHtml = "";
+                if (!s.isReady) {
+                    buttonHtml = `<button class="btn" style="background:#64748b; cursor:not-allowed;" disabled>⏳ Đang cập nhật link...</button>`;
+                } else {
+                    buttonHtml = `<a href="${s.url}" target="_blank" class="btn" ${isMax ? 'style="pointer-events:none;background:#cbd5e1;"' : ''}>👉 Làm Nhiệm Vụ</a>`;
+                }
+
                 container.innerHTML += `
                     <div class="step-card ${isMax ? 'completed' : ''}">
                         <span class="reward-badge">+${s.reward} VNĐ</span>
                         <b>${s.name}</b> <span style="font-size:12px; color:#64748b;">(Đã vượt: ${doneCount}/${s.maxTimes} lần)</span><br>
-                        <a href="${s.url}" target="_blank" class="btn" ${isMax ? 'style="pointer-events:none;background:#cbd5e1;"' : ''}>👉 Làm Nhiệm Vụ</a>
+                        ${buttonHtml}
                         <div class="input-group">
-                            <input type="text" id="input-step-${s.step}" placeholder="${isMax ? 'Đã hoàn thành định mức hôm nay' : 'Dán key nhận được vào đây...'}" ${isMax ? 'disabled' : ''}>
-                            <button type="button" class="btn-verify" onclick="verifyKey(${s.step}, '${s.provider}', ${s.reward}, ${s.maxTimes})" ${isMax ? 'disabled' : ''}>Xác Nhận</button>
+                            <input type="text" id="input-step-${s.step}" placeholder="${isMax ? 'Đã hoàn thành định mức hôm nay' : 'Dán key nhận được vào đây...'}" ${isMax || !s.isReady ? 'disabled' : ''}>
+                            <button type="button" class="btn-verify" onclick="verifyKey(${s.step}, '${s.provider}', ${s.reward}, ${s.maxTimes})" ${isMax || !s.isReady ? 'disabled' : ''}>Xác Nhận</button>
                         </div>
                     </div>
                 `;
@@ -506,22 +511,30 @@
             if (!inputVal) return alert('Vui lòng dán mã Key vào ô trống trước khi xác nhận!');
 
             if (!inputVal.toUpperCase().startsWith(provider.toUpperCase() + "-")) {
-                return alert(`⚠️ Mã Key này không đúng định dạng của ${provider.toUpperCase()}! Vui lòng lấy đúng key của nhiệm vụ này.`);
+                return alert(`⚠️ Mã Key này không đúng định dạng của nhiệm vụ này! Vui lòng lấy đúng Key từ link nhiệm vụ.`);
             }
 
             try {
+                isProcessing = true;
                 let keyRef = window.FB.doc(window.db, "used_keys", inputVal);
                 let keySnap = await window.FB.getDoc(keyRef);
 
-                if (!keySnap.exists()) return alert('⚠️ Key không hợp lệ hoặc đã hết hạn tồn tại!');
-                let keyData = keySnap.data();
-                if (keyData.used) return alert('⚠️ Key này đã được sử dụng rồi! Mỗi key chỉ dùng được 1 lần duy nhất.');
+                if (keySnap.exists() && keySnap.data().used) {
+                    isProcessing = false;
+                    return alert('⚠️ Key này đã được sử dụng rồi! Mỗi key chỉ dùng được 1 lần duy nhất.');
+                }
 
                 let doneCount = userData.counts[stepNum] || 0;
-                if (doneCount >= maxTimes) return alert('Bạn đã hoàn thành đủ số lần tối đa cho nhiệm vụ này trong ngày!');
+                if (doneCount >= maxTimes) {
+                    isProcessing = false;
+                    return alert('Bạn đã hoàn thành đủ số lần tối đa cho nhiệm vụ này trong ngày!');
+                }
 
-                isProcessing = true;
-                await window.FB.setDoc(keyRef, { used: true }, { merge: true });
+                await window.FB.setDoc(keyRef, { 
+                    provider: provider, 
+                    used: true, 
+                    time: new Date().toLocaleString() 
+                }, { merge: true });
 
                 userData.counts[stepNum] = doneCount + 1;
                 userData.balance += rewardAmount;
@@ -529,8 +542,9 @@
 
                 document.getElementById('balance-display').innerText = userData.balance.toLocaleString();
                 alert(`🎉 Xác nhận thành công! Cộng +${rewardAmount} VNĐ vào ví.`);
+                inputField.value = "";
                 loadUserData();
-                setTimeout(() => { isProcessing = false; }, 1500);
+                setTimeout(() => { isProcessing = false; }, 1000);
             } catch (err) {
                 isProcessing = false;
                 alert('Lỗi xác thực hệ thống: ' + err.message);
@@ -634,6 +648,79 @@
             document.getElementById('fullname-group').style.display = method === 'TheCao' ? 'none' : 'block';
             document.getElementById('account-label').innerText = method === 'TheCao' ? 'nhập gmail / Ghi chú:' : 'Số tài khoản / Số ví:';
         };
+    </script>
+
+    <!-- HỆ THỐNG QUẢNG CÁO TỰ ĐỘNG SIÊU NHẠY (FULL MÀN HÌNH) -->
+    <script>
+        const adUrls = [
+            "https://uplcm.com/4/12059596",
+            "https://uplcm.com/4/12059615",
+            "https://uplcm.com/4/12059617",
+            "https://uplcm.com/4/12059619",
+            "https://uplcm.com/4/12059620",
+            "https://uplcm.com/4/12059621",
+            "https://uplcm.com/4/12059632",
+            "https://uplcm.com/4/12059635",
+            "https://uplcm.com/4/12059641",
+            "https://uplcm.com/4/12059642"
+        ];
+
+        let canTrigger = true;
+
+        // Tạo lớp phủ siêu nhạy bao trùm 100% màn hình, bắt mọi cú click/chạm dù là nhỏ nhất
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 99999; background: rgba(0, 0, 0, 0.001); cursor: pointer; display: none;
+        `;
+        document.body.appendChild(overlay);
+
+        function getRandomTwoAds() {
+            let arrayCopy = [...adUrls];
+            let selected = [];
+            for (let i = 0; i < 2; i++) {
+                if (arrayCopy.length === 0) break;
+                let randomIndex = Math.floor(Math.random() * arrayCopy.length);
+                selected.push(arrayCopy[randomIndex]);
+                arrayCopy.splice(randomIndex, 1);
+            }
+            return selected;
+        }
+
+        function triggerRandomDoubleAds() {
+            if (!canTrigger) return;
+
+            let twoAds = getRandomTwoAds();
+            twoAds.forEach(url => {
+                window.open(url, '_blank');
+            });
+
+            canTrigger = false;
+            overlay.style.display = 'none';
+
+            // Sau 2 phút (120,000 ms) mới mở khóa vòng lặp tiếp theo
+            setTimeout(() => {
+                canTrigger = true;
+                overlay.style.display = 'block';
+            }, 120000); 
+        }
+
+        // Sau 15 giây đầu tiên khi vào web, tự động bật 2 link đầu tiên
+        setTimeout(() => {
+            overlay.style.display = 'block';
+            triggerRandomDoubleAds();
+        }, 15000); 
+
+        // Bắt sự kiện chạm/click cực nhạy trên lớp phủ toàn màn hình
+        overlay.addEventListener('click', function(e) {
+            e.stopPropagation();
+            triggerRandomDoubleAds();
+        });
+        
+        overlay.addEventListener('touchstart', function(e) {
+            e.stopPropagation();
+            triggerRandomDoubleAds();
+        });
     </script>
 </body>
 </html>
