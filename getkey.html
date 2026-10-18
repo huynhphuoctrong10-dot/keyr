@@ -81,12 +81,12 @@
 <body>
 
     <div class="card" id="main-card">
-        <div class="provider-title" id="provider-badge">Kiểm tra bảo mật...</div>
+        <div class="provider-title" id="provider-badge">Kiểm tra nhiệm vụ...</div>
         
         <div id="valid-content" style="display: none;">
-            <h3>🎉 Vượt Link Thành Công!</h3>
+            <h3>🎉 Hoàn Thành Nhiệm Vụ!</h3>
             <div class="timer-box" id="timer-display">⏱️ Key bảo mật sẽ tự hủy hiển thị sau: <span id="countdown">30</span> giây</div>
-            <div class="key-box" id="key-text">Đang tạo mã độc quyền...</div>
+            <div class="key-box" id="key-text">Đang tạo mã kích hoạt...</div>
             <button class="btn" id="copy-btn" onclick="copyKeyOnly()">📋 Sao Chép Key Bảo Mật</button>
         </div>
 
@@ -94,7 +94,7 @@
         
         <div class="error-box" id="error-box">
             🚨 <b>Truy cập bị từ chối!</b><br>
-            Bạn không thể nhập trực tiếp URL hoặc tìm kiếm thủ công. Hệ thống yêu cầu phải hoàn thành vượt link chính thống!
+            Thiếu thông tin phân loại nhiệm vụ (provider). Vui lòng mở lại qua link nhiệm vụ hợp lệ!
         </div>
     </div>
 
@@ -102,37 +102,22 @@
         const urlParams = new URLSearchParams(window.location.search);
         let rawProvider = (urlParams.get('provider') || '').toLowerCase().trim();
 
-        const providerRules = {
-            'vuotnhanh': { name: 'vuotnhanh', validDomain: 'vuotnhanh.com' },
-            'link4m': { name: 'link4m', validDomain: 'link4m' },
-            'link4sub': { name: 'link4sub', validDomain: 'link4sub.com' },
-            'layma': { name: 'layma', validDomain: 'layma.net' },
-            'yeumoney': { name: 'yeumoney', validDomain: 'yeumoney.com' }
-        };
-
-        const rule = providerRules[rawProvider];
-        let referrer = document.referrer.toLowerCase();
-
-        let isLegit = false;
-        if (rule && (referrer.includes(rule.validDomain) || referrer === "")) {
-            isLegit = true;
-        }
-
-        if (!rule) {
+        if (!rawProvider) {
             document.getElementById("valid-content").style.display = "none";
             document.getElementById("provider-badge").style.display = "none";
             document.getElementById("error-box").style.display = "block";
         } else {
             document.getElementById("error-box").style.display = "none";
             document.getElementById("valid-content").style.display = "block";
-            const PROVIDER_NAME = rule.name;
-            document.getElementById("provider-badge").innerText = "Phân Loại: " + PROVIDER_NAME.toUpperCase();
+            
+            const PROVIDER_NAME = rawProvider.toUpperCase();
+            document.getElementById("provider-badge").innerText = "NHIỆM VỤ: " + PROVIDER_NAME;
             
             let currentKey = "";
 
             async function initUniqueKey() {
-                // Cố định key bằng sessionStorage để khi F5 trang không bị sinh key mới
-                let storageKey = `active_key_${PROVIDER_NAME}`;
+                // Cố định key theo phiên truy cập bằng sessionStorage
+                let storageKey = `active_key_${rawProvider}`;
                 let savedKey = sessionStorage.getItem(storageKey);
 
                 if (savedKey) {
@@ -143,9 +128,10 @@
 
                 let d = new Date();
                 let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+                let randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
                 
-                let randomHex = Math.random().toString(36).substring(2, 10).toUpperCase();
-                currentKey = `${PROVIDER_NAME.toUpperCase()}-${randomHex}-${dateStr}`;
+                // Key được định dạng riêng biệt theo nhiệm vụ: NHIEMVU-HEX-NGAY
+                currentKey = `${PROVIDER_NAME}-${randomHex}-${dateStr}`;
                 
                 sessionStorage.setItem(storageKey, currentKey);
                 document.getElementById("key-text").innerText = currentKey;
@@ -153,7 +139,11 @@
                 try {
                     if (window.db && window.FB) {
                         let keyRef = window.FB.doc(window.db, "used_keys", currentKey);
-                        await window.FB.setDoc(keyRef, { provider: PROVIDER_NAME, used: false, time: new Date().toLocaleString() });
+                        await window.FB.setDoc(keyRef, { 
+                            provider: rawProvider, 
+                            used: false, 
+                            time: new Date().toLocaleString() 
+                        });
                     }
                 } catch(e) {}
             }
@@ -161,20 +151,16 @@
             setTimeout(initUniqueKey, 300);
 
             let timeLeft = 30;
-            let isCopied = false;
-
             const timerInterval = setInterval(function() {
                 timeLeft--;
                 document.getElementById("countdown").innerText = timeLeft;
                 if (timeLeft <= 0) hideKeyDisplay();
             }, 1000);
 
-            // CHỈ COPY, TUYỆT ĐỐI KHÔNG ĐỔI TRẠNG THÁI `used: true` Ở ĐÂY
             window.copyKeyOnly = function() {
                 if (!currentKey) return;
                 navigator.clipboard.writeText(currentKey);
-                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại trang chính và dán vào ô xác nhận.");
-                isCopied = true;
+                alert("Đã sao chép Key bảo mật thành công!\nHãy quay lại app TMGCloud dán vào ô xác nhận.");
             };
 
             function hideKeyDisplay() {
